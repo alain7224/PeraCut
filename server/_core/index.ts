@@ -7,6 +7,9 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { getAllLeadsFromFile, validateMasterKey } from "../auth";
+import { getDb } from "../db";
+import { users } from "../../drizzle/schema";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +38,56 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // Admin leads export — protected by master key via Authorization header or query param
+  app.get("/api/admin/leads.csv", async (req, res) => {
+    const key =
+      (req.headers["x-admin-key"] as string | undefined) ||
+      (req.query.key as string | undefined) ||
+      "";
+
+    if (!validateMasterKey(key)) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      let rows: Array<Record<string, unknown>> = [];
+
+      const db = await getDb();
+      if (db) {
+        rows = (await db.select().from(users)) as Array<Record<string, unknown>>;
+      } else {
+        rows = getAllLeadsFromFile() as unknown as Array<Record<string, unknown>>;
+      }
+
+      if (rows.length === 0) {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", 'attachment; filename="leads.csv"');
+        res.send("email,username,name,lastName,country,ageRange,consentAge,consentMarketing,createdAt\n");
+        return;
+      }
+
+      const cols = ["email", "username", "name", "lastName", "country", "ageRange", "consentAge", "consentMarketing", "createdAt"];
+      const escape = (v: unknown) => {
+        const s = v === undefined || v === null ? "" : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+
+      const lines = [
+        cols.join(","),
+        ...rows.map((r) => cols.map((c) => escape(r[c])).join(",")),
+      ];
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="leads.csv"');
+      res.send(lines.join("\r\n"));
+    } catch (err) {
+      console.error("[Admin] Error exporting leads:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

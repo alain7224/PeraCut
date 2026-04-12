@@ -11,6 +11,7 @@ import { Loader2, Download, Share2, ArrowLeft, Image, Video } from "lucide-react
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
+import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
 
 
 type EditorType = "photo" | "video";
@@ -53,6 +54,8 @@ export default function UnifiedEditor() {
   // Diálogos
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showRenderDialog, setShowRenderDialog] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
@@ -113,12 +116,24 @@ export default function UnifiedEditor() {
   };
 
   const handleDownload = () => {
-    if (editorType === "photo" && canvasRef.current) {
-      const link = document.createElement("a");
-      link.href = canvasRef.current.toDataURL("image/png");
-      link.download = `photo-${Date.now()}.png`;
-      link.click();
-      toast.success("Foto descargada correctamente");
+    requireRegistration(() => {
+      if (editorType === "photo" && canvasRef.current) {
+        const link = document.createElement("a");
+        link.href = canvasRef.current.toDataURL("image/png");
+        link.download = `photo-${Date.now()}.png`;
+        link.click();
+        toast.success("Foto descargada correctamente");
+      }
+    });
+  };
+
+  /** Gate any save/download action behind registration */
+  const requireRegistration = (action: () => void) => {
+    if (isRegistered()) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowRegistrationModal(true);
     }
   };
 
@@ -217,7 +232,7 @@ export default function UnifiedEditor() {
             {editorType === "photo" && (
               <>
                 <Button
-                  onClick={() => setShowShareDialog(true)}
+                  onClick={() => requireRegistration(() => setShowShareDialog(true))}
                   variant="outline"
                   size="sm"
                   className="gap-2"
@@ -231,19 +246,19 @@ export default function UnifiedEditor() {
                   className="gap-2 bg-blue-600 hover:bg-blue-700"
                 >
                   <Download className="w-4 h-4" />
-                  Descargar
+                  Guardar
                 </Button>
               </>
             )}
 
             {editorType === "video" && (
               <Button
-                onClick={() => setShowRenderDialog(true)}
+                onClick={() => requireRegistration(() => setShowRenderDialog(true))}
                 size="sm"
                 className="gap-2 bg-purple-600 hover:bg-purple-700"
               >
                 <Download className="w-4 h-4" />
-                Renderizar Video
+                Guardar Video
               </Button>
             )}
           </div>
@@ -432,6 +447,22 @@ export default function UnifiedEditor() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Registration Modal — shown before save/download if not yet registered */}
+      <RegistrationModal
+        open={showRegistrationModal}
+        onClose={() => {
+          setShowRegistrationModal(false);
+          setPendingAction(null);
+        }}
+        onSuccess={() => {
+          setShowRegistrationModal(false);
+          if (pendingAction) {
+            pendingAction();
+            setPendingAction(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VideoRenderDialog from "@/components/VideoRenderDialog";
+import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { ArrowLeft, Download, Plus, Trash2, Play, Pause } from "lucide-react";
@@ -34,6 +35,18 @@ export default function VideoEditor({ params }: VideoEditorProps) {
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  /** Gate any save action behind registration */
+  const requireRegistration = (action: () => void) => {
+    if (isRegistered()) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowRegistrationModal(true);
+    }
+  };
 
   const projectQuery = trpc.projects.get.useQuery(
     { id: parseInt(projectId) },
@@ -111,19 +124,21 @@ export default function VideoEditor({ params }: VideoEditorProps) {
   };
 
   const handleSave = () => {
-    if (!projectQuery.data) return;
+    requireRegistration(() => {
+      if (!projectQuery.data) return;
 
-    // Calcular duración total
-    const total = (scenesQuery.data || []).reduce((sum, scene) => sum + scene.duration, 0);
-    
-    if (total > 15000) { // 15 segundos máximo
-      toast.error("La duración total no puede exceder 15 segundos");
-      return;
-    }
+      // Calcular duración total
+      const total = (scenesQuery.data || []).reduce((sum, scene) => sum + scene.duration, 0);
 
-    updateProjectMutation.mutate({
-      id: parseInt(projectId),
-      data: JSON.stringify({ scenes: scenesQuery.data }),
+      if (total > 15000) { // 15 segundos máximo
+        toast.error("La duración total no puede exceder 15 segundos");
+        return;
+      }
+
+      updateProjectMutation.mutate({
+        id: parseInt(projectId),
+        data: JSON.stringify({ scenes: scenesQuery.data }),
+      });
     });
   };
 
@@ -347,6 +362,22 @@ export default function VideoEditor({ params }: VideoEditorProps) {
           </div>
         </div>
       </div>
+
+      {/* Registration Modal */}
+      <RegistrationModal
+        open={showRegistrationModal}
+        onClose={() => {
+          setShowRegistrationModal(false);
+          setPendingAction(null);
+        }}
+        onSuccess={() => {
+          setShowRegistrationModal(false);
+          if (pendingAction) {
+            pendingAction();
+            setPendingAction(null);
+          }
+        }}
+      />
     </div>
   );
 }

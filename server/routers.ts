@@ -40,9 +40,11 @@ export const appRouter = router({
         email: z.string().email('Email inválido'),
         name: z.string().min(2, 'Nombre muy corto'),
         lastName: z.string().min(2, 'Apellido muy corto'),
-        username: z.string().min(4, 'Username debe tener al menos 4 caracteres'),
-        age: z.number().optional(),
+        username: z.string().min(5, 'Username debe tener al menos 5 caracteres'),
         country: z.string().optional(),
+        ageRange: z.enum(['18-24', '25-34', '35-49', '50+']),
+        consentAge: z.boolean().refine((v) => v === true, 'Debes confirmar que tienes 18 años o más'),
+        consentMarketing: z.boolean().default(false),
       }))
       .mutation(async ({ input }) => {
         try {
