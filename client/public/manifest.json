@@ -1,0 +1,80 @@
+{
+  "name": "Visual Content AI Creator",
+  "short_name": "Visual Content AI",
+  "description": "Free AI-powered photo and video editor for personal use. Create, edit, and share content with advanced tools.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#ffffff",
+  "background_color": "#f5f5f5",
+  "categories": ["productivity", "graphics"],
+  "screenshots": [
+    {
+      "src": "/screenshot-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Photo Project",
+      "short_name": "New Photo",
+      "description": "Create a new photo editing project",
+      "url": "/editor/photo",
+      "icons": [
+        {
+          "src": "/icon-photo-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "New Video Project",
+      "short_name": "New Video",
+      "description": "Create a new video editing project",
+      "url": "/editor/video",
+      "icons": [
+        {
+          "src": "/icon-video-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1771816799277,
+      "tag": "0000_famous_scarecrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1771817083387,
+      "tag": "0001_early_karma",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1773139063476,
+      "tag": "0002_peaceful_chronomancer",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1775956175852,
+      "tag": "0003_workable_hedge_knight",
+      "breakpoints": true
+    }
+  ]
+}
