@@ -85,6 +85,11 @@ export function loadProjectFromFile(): Promise<PeraCutProject> {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return reject(new Error("No file selected"));
+      const cleanup = () => {
+        if (document.body.contains(input)) {
+          document.body.removeChild(input);
+        }
+      };
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
@@ -96,16 +101,24 @@ export function loadProjectFromFile(): Promise<PeraCutProject> {
           resolve(project);
         } catch (err) {
           reject(err);
+        } finally {
+          cleanup();
         }
       };
-      reader.onerror = () => reject(new Error("Error reading file"));
+      reader.onerror = () => {
+        cleanup();
+        reject(new Error("Error reading file"));
+      };
       reader.readAsText(file);
+    };
+    input.oncancel = () => {
+      if (document.body.contains(input)) {
+        document.body.removeChild(input);
+      }
     };
     // Some browsers require the element to be in the DOM before .click()
     input.style.display = "none";
     document.body.appendChild(input);
     input.click();
-    // Clean up immediately — the change event fires after the dialog closes
-    setTimeout(() => document.body.removeChild(input), 60_000);
   });
 }

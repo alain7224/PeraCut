@@ -97,7 +97,7 @@ export default function UnifiedEditor() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      const img = new (window as any).Image();
+      const img = document.createElement("img") as HTMLImageElement;
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
@@ -128,7 +128,7 @@ export default function UnifiedEditor() {
         stickers.forEach((s) => {
           const stickerDef = STICKERS.find((st) => st.id === s.stickerId);
           if (!stickerDef) return;
-          const stickerImg = new (window as any).Image();
+          const stickerImg = document.createElement("img") as HTMLImageElement;
           stickerImg.onload = () => {
             const size = 80 * s.scale;
             const x = (s.x / 100) * canvas.width - size / 2;
@@ -153,7 +153,7 @@ export default function UnifiedEditor() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new (window as any).FileReader();
+      const reader = new FileReader();
       reader.onload = (event: any) => {
         setCurrentImage(event.target?.result as string);
       };

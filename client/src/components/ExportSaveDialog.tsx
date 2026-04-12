@@ -94,7 +94,7 @@ async function exportPhotoBlob(
   quality: ImageQuality
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const img = new window.Image();
+    const img = document.createElement("img") as HTMLImageElement;
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
@@ -395,7 +395,7 @@ export default function ExportSaveDialog({
                   <p className="font-medium">Escenas: {videoScenes.length}</p>
                   {videoScenes.length > 0 && (
                     <p className="text-muted-foreground">
-                      ~{Math.floor(15 / videoScenes.length)} s por escena
+                      ~{Math.floor(15 / Math.max(videoScenes.length, 1))} s por escena
                     </p>
                   )}
                 </div>
