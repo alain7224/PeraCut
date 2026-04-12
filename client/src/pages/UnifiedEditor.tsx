@@ -115,6 +115,16 @@ export default function UnifiedEditor() {
     }
   };
 
+  /** Gate any save/download action behind registration */
+  const requireRegistration = (action: () => void) => {
+    if (isRegistered()) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowRegistrationModal(true);
+    }
+  };
+
   const handleDownload = () => {
     requireRegistration(() => {
       if (editorType === "photo" && canvasRef.current) {
@@ -125,16 +135,6 @@ export default function UnifiedEditor() {
         toast.success("Foto descargada correctamente");
       }
     });
-  };
-
-  /** Gate any save/download action behind registration */
-  const requireRegistration = (action: () => void) => {
-    if (isRegistered()) {
-      action();
-    } else {
-      setPendingAction(() => action);
-      setShowRegistrationModal(true);
-    }
   };
 
   const handleSelectType = (type: EditorType) => {

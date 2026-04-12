@@ -23,6 +23,8 @@ export interface UserData {
 // File-based fallback path for leads when DB is not available
 const LEADS_FILE = path.resolve(process.cwd(), 'data', 'leads.json');
 
+type LeadRecord = UserData & { createdAt: string };
+
 function ensureLeadsFile() {
   const dir = path.dirname(LEADS_FILE);
   if (!fs.existsSync(dir)) {
@@ -33,24 +35,24 @@ function ensureLeadsFile() {
   }
 }
 
-function readLeads(): UserData[] {
+function readLeads(): LeadRecord[] {
   try {
     ensureLeadsFile();
     const raw = fs.readFileSync(LEADS_FILE, 'utf-8');
-    return JSON.parse(raw) as UserData[];
+    return JSON.parse(raw) as LeadRecord[];
   } catch {
     return [];
   }
 }
 
-function appendLeadToFile(lead: UserData & { createdAt: string }) {
-  const leads = readLeads() as Array<UserData & { createdAt: string }>;
+function appendLeadToFile(lead: LeadRecord) {
+  const leads = readLeads();
   leads.push(lead);
   fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf-8');
 }
 
-export function getAllLeadsFromFile(): Array<UserData & { createdAt: string }> {
-  return readLeads() as Array<UserData & { createdAt: string }>;
+export function getAllLeadsFromFile(): LeadRecord[] {
+  return readLeads();
 }
 
 /**
@@ -83,7 +85,7 @@ export async function registerUser(data: UserData): Promise<number | null> {
 
   if (!db) {
     // File-based fallback: check for duplicates
-    const existing = readLeads() as Array<UserData & { createdAt: string }>;
+    const existing = readLeads();
     if (existing.some((u) => u.email === data.email)) {
       throw new Error('El email ya está registrado');
     }
