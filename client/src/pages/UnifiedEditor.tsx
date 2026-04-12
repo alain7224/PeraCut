@@ -4,16 +4,23 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Download, Share2, ArrowLeft, Image, Video } from "lucide-react";
-import { toast } from "sonner";
+import { Share2, ArrowLeft, Image, Video, Save, X, Plus } from "lucide-react";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
+import ExportSaveDialog from "@/components/ExportSaveDialog";
+import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
+import type { StickerItem } from "@/lib/projectSchema";
+import type { PeraCutProject } from "@/lib/projectSchema";
 
 
 type EditorType = "photo" | "video";
+
+/** Small helper to generate unique ids without importing nanoid */
+function uid(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 interface Scene {
   id: number;
@@ -32,7 +39,7 @@ export default function UnifiedEditor() {
   // Estado del editor
   const [editorType, setEditorType] = useState<EditorType>("photo");
   const [showTypeSelector, setShowTypeSelector] = useState(!projectId);
-  const [isLoading, setIsLoading] = useState(false);
+  const [projectName, setProjectName] = useState("Mi Proyecto");
 
   // Estado de edición de fotos
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +50,10 @@ export default function UnifiedEditor() {
   const [rotation, setRotation] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState<string>("none");
 
+  // Stickers overlaid on the photo canvas
+  const [stickers, setStickers] = useState<StickerItem[]>([]);
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+
   // Estado de edición de videos
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
@@ -52,7 +63,6 @@ export default function UnifiedEditor() {
 
   // Diálogos
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showRenderDialog, setShowRenderDialog] = useState(false);
 
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
@@ -91,15 +101,54 @@ export default function UnifiedEditor() {
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
 
-        // Aplicar filtros CSS
-        const filterValue = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${rotation}deg)`;
-        canvas.style.filter = filterValue;
+        // Build the filter string and bake it into the canvas context so that
+        // toDataURL() captures the filters (CSS style.filter is NOT captured).
+        const presetMap: Record<string, string> = {
+          grayscale: "grayscale(100%)",
+          sepia: "sepia(100%)",
+          vintage: "sepia(50%) saturate(50%) brightness(110%)",
+          cool: "hue-rotate(180deg) saturate(120%)",
+          warm: "hue-rotate(10deg) saturate(130%)",
+          noir: "grayscale(100%) contrast(150%)",
+          none: "",
+        };
+        const presetStr = presetMap[selectedFilter] ?? "";
+        const adjustStr = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+        ctx.filter = presetStr ? `${adjustStr} ${presetStr}` : adjustStr;
+
+        // Apply rotation around canvas centre
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+
+        // Draw sticker overlays
+        stickers.forEach((s) => {
+          const stickerDef = STICKERS.find((st) => st.id === s.stickerId);
+          if (!stickerDef) return;
+          const stickerImg = new (window as any).Image();
+          stickerImg.onload = () => {
+            const size = 80 * s.scale;
+            const x = (s.x / 100) * canvas.width - size / 2;
+            const y = (s.y / 100) * canvas.height - size / 2;
+            ctx.save();
+            ctx.filter = "none";
+            ctx.translate(x + size / 2, y + size / 2);
+            ctx.rotate((s.rotation * Math.PI) / 180);
+            ctx.drawImage(stickerImg, -size / 2, -size / 2, size, size);
+            ctx.restore();
+          };
+          stickerImg.src = stickerToDataUrl(stickerDef);
+        });
+
+        // Remove CSS filter (we use ctx.filter now)
+        canvas.style.filter = "none";
       };
       img.src = currentImage;
     }
-  }, [currentImage, brightness, contrast, saturation, rotation, selectedFilter, editorType]);
+  }, [currentImage, brightness, contrast, saturation, rotation, selectedFilter, stickers, editorType]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -112,14 +161,83 @@ export default function UnifiedEditor() {
     }
   };
 
-  const handleDownload = () => {
-    if (editorType === "photo" && canvasRef.current) {
-      const link = document.createElement("a");
-      link.href = canvasRef.current.toDataURL("image/png");
-      link.download = `photo-${Date.now()}.png`;
-      link.click();
-      toast.success("Foto descargada correctamente");
+  // ── Sticker helpers ────────────────────────────────────────────────────────
+
+  const handleAddSticker = (stickerId: string) => {
+    const newSticker: StickerItem = {
+      id: uid(),
+      stickerId,
+      x: 50,
+      y: 50,
+      scale: 1,
+      rotation: 0,
+    };
+    setStickers((prev) => [...prev, newSticker]);
+  };
+
+  const handleRemoveSticker = (id: string) => {
+    setStickers((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  // ── Project snapshot (for ExportSaveDialog) ────────────────────────────────
+
+  const buildProject = (): PeraCutProject => ({
+    version: "1.0",
+    type: editorType,
+    name: projectName,
+    savedAt: new Date().toISOString(),
+    photo:
+      editorType === "photo"
+        ? {
+            imageDataUrl: currentImage ?? undefined,
+            brightness,
+            contrast,
+            saturation,
+            rotation,
+            filter: selectedFilter,
+            stickers,
+          }
+        : undefined,
+    video:
+      editorType === "video"
+        ? {
+            scenes: scenes.map((sc) => ({
+              id: String(sc.id),
+              duration: sc.duration,
+              mediaUrl: sc.mediaUrl ?? undefined,
+              transition: transitionType,
+              transitionDuration,
+              stickers: [],
+            })),
+            transitionType,
+            transitionDuration,
+            slowMotionSpeed,
+          }
+        : undefined,
+  });
+
+  // ── Load project ───────────────────────────────────────────────────────────
+
+  const handleProjectLoaded = (loaded: PeraCutProject) => {
+    setEditorType(loaded.type);
+    setProjectName(loaded.name);
+    if (loaded.type === "photo" && loaded.photo) {
+      const p = loaded.photo;
+      if (p.imageDataUrl) setCurrentImage(p.imageDataUrl);
+      setBrightness(p.brightness ?? 100);
+      setContrast(p.contrast ?? 100);
+      setSaturation(p.saturation ?? 100);
+      setRotation(p.rotation ?? 0);
+      setSelectedFilter(p.filter ?? "none");
+      setStickers(p.stickers ?? []);
     }
+    if (loaded.type === "video" && loaded.video) {
+      const v = loaded.video;
+      setTransitionType(v.transitionType ?? "fade");
+      setTransitionDuration(v.transitionDuration ?? 500);
+      setSlowMotionSpeed(v.slowMotionSpeed ?? 1);
+    }
+    setShowTypeSelector(false);
   };
 
   const handleSelectType = (type: EditorType) => {
@@ -215,37 +333,40 @@ export default function UnifiedEditor() {
 
           <div className="flex items-center gap-3">
             {editorType === "photo" && (
-              <>
-                <Button
-                  onClick={() => setShowShareDialog(true)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Compartir
-                </Button>
-                <Button
-                  onClick={handleDownload}
-                  size="sm"
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Download className="w-4 h-4" />
-                  Descargar
-                </Button>
-              </>
-            )}
-
-            {editorType === "video" && (
               <Button
-                onClick={() => setShowRenderDialog(true)}
+                onClick={() => setShowShareDialog(true)}
+                variant="outline"
                 size="sm"
-                className="gap-2 bg-purple-600 hover:bg-purple-700"
+                className="gap-2"
               >
-                <Download className="w-4 h-4" />
-                Renderizar Video
+                <Share2 className="w-4 h-4" />
+                Compartir
               </Button>
             )}
+
+            {/* Unified Save / Export button */}
+            <ExportSaveDialog
+              editorType={editorType}
+              canvasRef={canvasRef}
+              imageFilters={{ brightness, contrast, saturation, rotation, filter: selectedFilter }}
+              currentImageSrc={currentImage}
+              videoScenes={scenes.map((sc) => ({
+                id: String(sc.id),
+                imageUrl: sc.mediaUrl ?? undefined,
+                duration: sc.duration,
+              }))}
+              projectName={projectName}
+              project={buildProject()}
+              onProjectLoaded={handleProjectLoaded}
+            >
+              <Button
+                size="sm"
+                className={`gap-2 ${editorType === "photo" ? "bg-blue-600 hover:bg-blue-700" : "bg-purple-600 hover:bg-purple-700"}`}
+              >
+                <Save className="w-4 h-4" />
+                Guardar
+              </Button>
+            </ExportSaveDialog>
           </div>
         </div>
       </div>
@@ -278,11 +399,40 @@ export default function UnifiedEditor() {
                     </label>
                   </div>
                 ) : (
-                  <div className="flex justify-center">
+                  <div className="relative flex justify-center">
                     <canvas
                       ref={canvasRef}
                       className="max-w-full max-h-96 rounded-lg shadow-md"
                     />
+                    {/* Sticker overlays (visual only — baked on export) */}
+                    {stickers.map((s) => {
+                      const def = STICKERS.find((st) => st.id === s.stickerId);
+                      if (!def) return null;
+                      return (
+                        <div
+                          key={s.id}
+                          className="absolute cursor-move select-none"
+                          style={{
+                            left: `${s.x}%`,
+                            top: `${s.y}%`,
+                            transform: `translate(-50%, -50%) rotate(${s.rotation}deg) scale(${s.scale})`,
+                          }}
+                        >
+                          <img
+                            src={stickerToDataUrl(def)}
+                            alt={def.name}
+                            className="w-16 h-16 pointer-events-none"
+                          />
+                          <button
+                            onClick={() => handleRemoveSticker(s.id)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                            title="Eliminar sticker"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -292,6 +442,9 @@ export default function UnifiedEditor() {
                   <Video className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600">
                     Editor de video con timeline y transiciones
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Usa el botón <strong>Guardar</strong> para renderizar y exportar el video MP4.
                   </p>
                 </div>
               </div>
@@ -334,6 +487,46 @@ export default function UnifiedEditor() {
                       setSelectedFilter(settings.filter || "none");
                     }}
                   />
+
+                  {/* Sticker panel */}
+                  <div className="bg-white rounded-xl shadow-lg p-4">
+                    <button
+                      onClick={() => setShowStickerPanel((v) => !v)}
+                      className="w-full flex items-center justify-between font-semibold text-sm"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-primary" />
+                        Stickers
+                        {stickers.length > 0 && (
+                          <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs px-1.5">
+                            {stickers.length}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {showStickerPanel ? "▲" : "▼"}
+                      </span>
+                    </button>
+
+                    {showStickerPanel && (
+                      <div className="mt-3 grid grid-cols-4 gap-2">
+                        {STICKERS.map((st) => (
+                          <button
+                            key={st.id}
+                            onClick={() => handleAddSticker(st.id)}
+                            title={st.name}
+                            className="aspect-square rounded-lg border border-border hover:border-primary hover:bg-primary/5 flex items-center justify-center transition-colors"
+                          >
+                            <img
+                              src={stickerToDataUrl(st)}
+                              alt={st.name}
+                              className="w-8 h-8"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
 
@@ -394,7 +587,7 @@ export default function UnifiedEditor() {
         </div>
       </div>
 
-      {/* Diálogos */}
+      {/* Share dialog */}
       {showShareDialog && currentImage && (
         <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
           <DialogContent>
@@ -402,32 +595,23 @@ export default function UnifiedEditor() {
               <DialogTitle>Compartir Foto</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">Descarga o comparte tu foto en redes sociales</p>
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={handleDownload}>
-                  Descargar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {showRenderDialog && (
-        <Dialog open={showRenderDialog} onOpenChange={setShowRenderDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Renderizar Video</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                Tu video se está renderizando. Esto puede tomar algunos minutos.
+                Descarga o comparte tu foto en redes sociales
               </p>
-              {isLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                </div>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                <ExportSaveDialog
+                  editorType="photo"
+                  imageFilters={{ brightness, contrast, saturation, rotation, filter: selectedFilter }}
+                  currentImageSrc={currentImage}
+                  projectName={projectName}
+                  project={buildProject()}
+                  onProjectLoaded={handleProjectLoaded}
+                >
+                  <Button variant="outline" size="sm">
+                    Exportar imagen
+                  </Button>
+                </ExportSaveDialog>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
