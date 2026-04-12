@@ -109,6 +109,7 @@ export default function MusicPanel({
               variant="outline"
               size="sm"
               className="w-full"
+              aria-label="Elegir archivo de audio (mp3, m4a, wav)"
               onClick={() => fileInputRef.current?.click()}
             >
               Elegir archivo de audio

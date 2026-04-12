@@ -438,6 +438,12 @@ export default function UnifiedEditor() {
                     <div className="bg-green-50 rounded-xl shadow-sm border border-green-200 p-3">
                       <p className="text-xs font-semibold text-green-800 mb-1">Plantilla activa</p>
                       <p className="text-xs text-green-700">{loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}s · {loadedTemplate.aspectRatio}</p>
+                      <button
+                        className="mt-2 text-xs text-green-600 underline underline-offset-2 hover:text-green-800"
+                        onClick={() => navigate('/templates')}
+                      >
+                        Cambiar plantilla
+                      </button>
                     </div>
                   )}
 

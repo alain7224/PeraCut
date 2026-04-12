@@ -91,7 +91,7 @@ export async function generatePop(
   return buffer;
 }
 
-  // SharedAudioContext: reuse a single context to avoid hitting browser limits
+/** SharedAudioContext: reuse a single context to avoid hitting browser limits. */
 let _sharedCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext {
   if (!_sharedCtx || _sharedCtx.state === 'closed') {

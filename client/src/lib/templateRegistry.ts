@@ -47,7 +47,6 @@ function buildScenes(
   }));
 }
 
-/** Distribute totalMs evenly into n scenes (last scene absorbs rounding remainder). */
 /** Distribute totalMs evenly into n scenes. The last scene absorbs any rounding remainder. */
 function evenSplit(totalMs: number, n: number): number[] {
   const base = Math.floor(totalMs / n);
