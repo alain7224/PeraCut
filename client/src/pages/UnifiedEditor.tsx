@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Download, Share2, ArrowLeft, Image, Video } from "lucide-react";
+import { Loader2, Download, Share2, ArrowLeft, Image, Video, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
+import MusicPanel from "@/components/MusicPanel";
+import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
+import { getTemplateById, applyTemplateToMedia } from "@/lib/templateRegistry";
 
 
 type EditorType = "photo" | "video";
@@ -27,11 +30,17 @@ interface Scene {
 export default function UnifiedEditor() {
   const { projectId } = useParams<{ projectId: string }>();
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { user } = useAuth();
 
+  // Parse query params
+  const searchParams = new URLSearchParams(searchString);
+  const editorTypeParam = searchParams.get("type") as EditorType | null;
+  const templateParam = searchParams.get("template");
+
   // Estado del editor
-  const [editorType, setEditorType] = useState<EditorType>("photo");
-  const [showTypeSelector, setShowTypeSelector] = useState(!projectId);
+  const [editorType, setEditorType] = useState<EditorType>(editorTypeParam ?? "photo");
+  const [showTypeSelector, setShowTypeSelector] = useState(!projectId && !editorTypeParam && !templateParam);
   const [isLoading, setIsLoading] = useState(false);
 
   // Estado de edición de fotos
@@ -54,6 +63,21 @@ export default function UnifiedEditor() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showRenderDialog, setShowRenderDialog] = useState(false);
 
+  // Template loading
+  const loadedTemplate = useMemo(() => {
+    if (!templateParam) return null;
+    return getTemplateById(templateParam) ?? null;
+  }, [templateParam]);
+
+  // Total duration for video scenes
+  const totalVideoDurationMs = useMemo(() => {
+    if (loadedTemplate) return loadedTemplate.durationMs;
+    return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
+  }, [scenes, loadedTemplate]);
+
+  const exportValidation = validateExportDuration(totalVideoDurationMs);
+  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
+
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
     { id: parseInt(projectId || "0") },
@@ -64,6 +88,17 @@ export default function UnifiedEditor() {
     { projectId: parseInt(projectId || "0") },
     { enabled: !!projectId && editorType === "video" }
   ) as any;
+
+  // Efecto: set editor type from template or param
+  useEffect(() => {
+    if (templateParam) {
+      setEditorType("video");
+      setShowTypeSelector(false);
+    } else if (editorTypeParam) {
+      setEditorType(editorTypeParam);
+      setShowTypeSelector(false);
+    }
+  }, [templateParam, editorTypeParam]);
 
   // Efecto: cargar proyecto y determinar tipo
   useEffect(() => {
@@ -240,7 +275,8 @@ export default function UnifiedEditor() {
               <Button
                 onClick={() => setShowRenderDialog(true)}
                 size="sm"
-                className="gap-2 bg-purple-600 hover:bg-purple-700"
+                disabled={renderBlocked}
+                className="gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
                 Renderizar Video
@@ -249,6 +285,14 @@ export default function UnifiedEditor() {
           </div>
         </div>
       </div>
+
+      {/* Duration warning banner */}
+      {editorType === "video" && !exportValidation.valid && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+          {EXPORT_LIMIT_WARNING_ES}
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -338,56 +382,67 @@ export default function UnifiedEditor() {
               )}
 
               {editorType === "video" && (
-                <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
-                  <h3 className="font-bold text-gray-900">Opciones de Video</h3>
+                <>
+                  <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
+                    <h3 className="font-bold text-gray-900">Opciones de Video</h3>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Velocidad: {slowMotionSpeed.toFixed(2)}x
-                    </label>
-                    <Slider
-                      value={[slowMotionSpeed]}
-                      onValueChange={(val) => setSlowMotionSpeed(val[0])}
-                      min={0.25}
-                      max={2}
-                      step={0.25}
-                      className="w-full"
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Velocidad: {slowMotionSpeed.toFixed(2)}x
+                      </label>
+                      <Slider
+                        value={[slowMotionSpeed]}
+                        onValueChange={(val) => setSlowMotionSpeed(val[0])}
+                        min={0.25}
+                        max={2}
+                        step={0.25}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Transición
+                      </label>
+                      <Select value={transitionType} onValueChange={setTransitionType}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fade">Fundido</SelectItem>
+                          <SelectItem value="slide">Barrido</SelectItem>
+                          <SelectItem value="zoom">Zoom</SelectItem>
+                          <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
+                          <SelectItem value="wipeRight">Barrido Der</SelectItem>
+                          <SelectItem value="none">Ninguno</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Duración: {transitionDuration}ms
+                      </label>
+                      <Slider
+                        value={[transitionDuration]}
+                        onValueChange={(val) => setTransitionDuration(val[0])}
+                        min={100}
+                        max={2000}
+                        step={100}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Transición
-                    </label>
-                    <Select value={transitionType} onValueChange={setTransitionType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fade">Fundido</SelectItem>
-                        <SelectItem value="slide">Barrido</SelectItem>
-                        <SelectItem value="zoom">Zoom</SelectItem>
-                        <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
-                        <SelectItem value="wipeRight">Barrido Der</SelectItem>
-                        <SelectItem value="none">Ninguno</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {loadedTemplate && (
+                    <div className="bg-green-50 rounded-xl shadow-sm border border-green-200 p-3">
+                      <p className="text-xs font-semibold text-green-800 mb-1">Plantilla activa</p>
+                      <p className="text-xs text-green-700">{loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}s · {loadedTemplate.aspectRatio}</p>
+                    </div>
+                  )}
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Duración: {transitionDuration}ms
-                    </label>
-                    <Slider
-                      value={[transitionDuration]}
-                      onValueChange={(val) => setTransitionDuration(val[0])}
-                      min={100}
-                      max={2000}
-                      step={100}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
+                  <MusicPanel />
+                </>
               )}
             </div>
           </div>
