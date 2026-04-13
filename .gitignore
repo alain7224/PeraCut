@@ -111,3 +111,4 @@ temp/
 
 # Local leads file (file-based fallback when DB is not configured)
 data/leads.json
+package-lock.json
