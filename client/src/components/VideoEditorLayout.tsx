@@ -92,6 +92,7 @@ interface VideoEditorLayoutProps {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const MAX_CLIPS = 15;
+const DEFAULT_CLIP_DURATION_MS = 3000;
 
 const AVAILABLE_TRANSITIONS: { type: TransitionType; label: string; icon: string }[] = [
   { type: "fade", label: "Fundido", icon: "🌫️" },
@@ -343,10 +344,10 @@ export default function VideoEditorLayout({
       const reader = new FileReader();
       reader.onload = (e) => {
         newClips.push({
-          id: `clip-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id: crypto.randomUUID(),
           mediaUrl: e.target?.result as string,
           mediaType: file.type.startsWith("video") ? "video" : "image",
-          duration: 3000,
+          duration: DEFAULT_CLIP_DURATION_MS,
           name: file.name,
         });
         loaded++;
@@ -372,7 +373,7 @@ export default function VideoEditorLayout({
     const reader = new FileReader();
     reader.onload = (e) => {
       const newTrack: AudioTrack = {
-        id: `audio-${Date.now()}`,
+        id: crypto.randomUUID(),
         name: file.name,
         url: e.target?.result as string,
         duration: 0,
@@ -639,7 +640,7 @@ export default function VideoEditorLayout({
           <div className="w-64 shrink-0 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-700">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Todos Botones Aquí
+                Panel de Control
               </p>
             </div>
             <ScrollArea className="flex-1">
