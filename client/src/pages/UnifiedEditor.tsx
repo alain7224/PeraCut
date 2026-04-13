@@ -227,7 +227,9 @@ export default function UnifiedEditor() {
       }
       setMediaItems((prev) => {
         const updated = [...prev, ...newItems];
-        setSelectedMediaIndex(updated.length - newItems.length);
+        // Select the first of the newly added items
+        const firstNewIdx = prev.length;
+        setSelectedMediaIndex(firstNewIdx);
         return updated;
       });
       toast.success(
@@ -255,7 +257,7 @@ export default function UnifiedEditor() {
         }
         return true;
       });
-      setSelectedMediaIndex((idx) => Math.min(idx, Math.max(0, updated.length - 1)));
+      setSelectedMediaIndex((idx) => Math.min(idx, Math.max(0, updated.length - 1))); // clamp to [0, newLength-1]
       return updated;
     });
   };
@@ -646,10 +648,10 @@ export default function UnifiedEditor() {
                     <div className="flex flex-col items-center gap-3">
                       <Image className="w-12 h-12 text-gray-400" />
                       <p className="text-lg font-medium text-gray-700">
-                        Haz clic para cargar imágenes o videos
+                        Haz clic para cargar imágenes
                       </p>
                       <p className="text-sm text-gray-500">
-                        Formatos soportados: JPG, PNG, MP4, MOV y más
+                        Formatos soportados: JPG, PNG (máx 4000x4000px)
                       </p>
                     </div>
                   </div>
