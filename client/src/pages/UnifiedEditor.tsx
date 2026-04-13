@@ -94,21 +94,6 @@ export default function UnifiedEditor() {
   const exportValidation = validateExportDuration(totalVideoDurationMs);
   const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
 
-  // Template loading
-  const loadedTemplate = useMemo(() => {
-    if (!templateParam) return null;
-    return getTemplateById(templateParam) ?? null;
-  }, [templateParam]);
-
-  // Total duration for video scenes
-  const totalVideoDurationMs = useMemo(() => {
-    if (loadedTemplate) return loadedTemplate.durationMs;
-    return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
-  }, [scenes, loadedTemplate]);
-
-  const exportValidation = validateExportDuration(totalVideoDurationMs);
-  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
-
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
     { id: parseInt(projectId || "0") },
@@ -437,7 +422,7 @@ export default function UnifiedEditor() {
 
           <div className="flex items-center gap-3">
             {/* Export limit warning for video */}
-            {editorType === "video" && exportValidation.warning && (
+            {editorType === "video" && exportValidation.message && (
               <div className="hidden md:flex items-center gap-1 text-amber-600 text-xs">
                 <AlertTriangle className="w-3 h-3" />
                 <span>{EXPORT_LIMIT_WARNING_ES}</span>
