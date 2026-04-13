@@ -94,6 +94,21 @@ export default function UnifiedEditor() {
   const exportValidation = validateExportDuration(totalVideoDurationMs);
   const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
 
+  // Template loading
+  const loadedTemplate = useMemo(() => {
+    if (!templateParam) return null;
+    return getTemplateById(templateParam) ?? null;
+  }, [templateParam]);
+
+  // Total duration for video scenes
+  const totalVideoDurationMs = useMemo(() => {
+    if (loadedTemplate) return loadedTemplate.durationMs;
+    return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
+  }, [scenes, loadedTemplate]);
+
+  const exportValidation = validateExportDuration(totalVideoDurationMs);
+  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
+
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
     { id: parseInt(projectId || "0") },
@@ -455,7 +470,7 @@ export default function UnifiedEditor() {
               <Button
                 onClick={() => requireRegistration(() => setShowRenderDialog(true))}
                 size="sm"
-                className="gap-2 bg-purple-600 hover:bg-purple-700"
+                className="gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
                 disabled={renderBlocked}
                 title={renderBlocked ? EXPORT_LIMIT_WARNING_ES : "Guardar video"}
               >
@@ -490,6 +505,14 @@ export default function UnifiedEditor() {
           </div>
         </div>
       </div>
+
+      {/* Duration warning banner */}
+      {editorType === "video" && !exportValidation.valid && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+          {EXPORT_LIMIT_WARNING_ES}
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
