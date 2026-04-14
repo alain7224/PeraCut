@@ -19,6 +19,7 @@ import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
 import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
 import { getTemplateById } from "@/lib/templateRegistry";
 import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
+import VideoEditorLayout from "@/components/VideoEditorLayout";
 
 
 type EditorType = "photo" | "video";
@@ -626,17 +627,31 @@ export default function UnifiedEditor() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Canvas/Editor Area */}
           <div className="lg:col-span-3 space-y-4">
-            {/* Media Strip — shown in both modes */}
-            <MediaStrip
-              items={mediaItems}
-              selectedIndex={selectedMediaIndex}
-              onSelect={(idx) => {
-                setSelectedMediaIndex(idx);
-                setIsVideoPlaying(false);
-              }}
-              onRemove={handleRemoveMediaItem}
-              onAdd={openFilePicker}
-            />
+            {/* Media Strip — video mode gets drag-and-drop reordering */}
+            {editorType === "video" ? (
+              <VideoEditorLayout
+                items={mediaItems}
+                selectedIndex={selectedMediaIndex}
+                onSelect={(idx) => {
+                  setSelectedMediaIndex(idx);
+                  setIsVideoPlaying(false);
+                }}
+                onRemove={handleRemoveMediaItem}
+                onAdd={openFilePicker}
+                onReorder={setMediaItems}
+              />
+            ) : (
+              <MediaStrip
+                items={mediaItems}
+                selectedIndex={selectedMediaIndex}
+                onSelect={(idx) => {
+                  setSelectedMediaIndex(idx);
+                  setIsVideoPlaying(false);
+                }}
+                onRemove={handleRemoveMediaItem}
+                onAdd={openFilePicker}
+              />
+            )}
 
             {editorType === "photo" ? (
               <div className="bg-white rounded-xl shadow-lg p-6">
