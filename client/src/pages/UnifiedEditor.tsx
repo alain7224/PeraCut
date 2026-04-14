@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus, AlertTriangle } from "lucide-react";
+import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus, AlertTriangle, Play, Pause, SkipBack, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
@@ -18,6 +18,7 @@ import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
 import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
 import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
 import { getTemplateById } from "@/lib/templateRegistry";
+import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
 
 
 type EditorType = "photo" | "video";
@@ -55,7 +56,6 @@ export default function UnifiedEditor() {
 
   // Estado de edición de fotos
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
@@ -65,6 +65,13 @@ export default function UnifiedEditor() {
   // Stickers overlaid on the photo canvas
   const [stickers, setStickers] = useState<StickerItem[]>([]);
   const [showStickerPanel, setShowStickerPanel] = useState(false);
+
+  // Unified media items (photos + videos)
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   // Estado de edición de videos
   const [scenes, setScenes] = useState<Scene[]>([]);
@@ -131,6 +138,10 @@ export default function UnifiedEditor() {
     }
   }, [scenesQuery.data]);
 
+  // Derived: selected media item & current image for photo canvas
+  const selectedMedia = mediaItems[selectedMediaIndex] ?? null;
+  const currentImage = selectedMedia?.type === "image" ? selectedMedia.objectUrl : null;
+
   // Efecto: aplicar efectos a la imagen
   useEffect(() => {
     if (editorType === "photo" && currentImage && canvasRef.current) {
@@ -191,15 +202,90 @@ export default function UnifiedEditor() {
     }
   }, [currentImage, brightness, contrast, saturation, rotation, selectedFilter, stickers, editorType]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event: any) => {
-        setCurrentImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+  // ── Multi-file media upload ─────────────────────────────────────────────────
+
+  const handleMediaFiles = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    try {
+      const newItems: MediaItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isVideo = file.type.startsWith("video/");
+        const isImage = file.type.startsWith("image/");
+        if (!isVideo && !isImage) continue;
+        const objectUrl = URL.createObjectURL(file);
+        newItems.push({
+          id: uid(),
+          type: isVideo ? "video" : "image",
+          fileName: file.name,
+          objectUrl,
+        });
+      }
+      if (newItems.length === 0) {
+        toast.error("No se encontraron archivos de imagen o video válidos");
+        return;
+      }
+      setMediaItems((prev) => {
+        const updated = [...prev, ...newItems];
+        // Select the first of the newly added items
+        const firstNewIdx = prev.length;
+        setSelectedMediaIndex(firstNewIdx);
+        return updated;
+      });
+      toast.success(
+        newItems.length === 1
+          ? `1 archivo añadido`
+          : `${newItems.length} archivos añadidos`
+      );
+    } catch {
+      toast.error("Error al cargar los archivos. Intenta de nuevo.");
     }
+  }, []);
+
+  const handleMediaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleMediaFiles(e.target.files);
+    // Reset so same files can be re-selected
+    e.target.value = "";
+  };
+
+  const handleRemoveMediaItem = (id: string) => {
+    setMediaItems((prev) => {
+      const updated = prev.filter((item) => {
+        if (item.id === id) {
+          URL.revokeObjectURL(item.objectUrl);
+          return false;
+        }
+        return true;
+      });
+      setSelectedMediaIndex((idx) => Math.min(idx, Math.max(0, updated.length - 1))); // clamp to [0, newLength-1]
+      return updated;
+    });
+  };
+
+  const openFilePicker = () => mediaFileInputRef.current?.click();
+
+  // ── Video transport controls ───────────────────────────────────────────────
+
+  const handlePlayPause = () => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (vid.paused) {
+      vid.play().catch(() => toast.error("No se pudo reproducir el video"));
+    } else {
+      vid.pause();
+    }
+  };
+
+  const handlePrev = () => {
+    if (mediaItems.length === 0) return;
+    setSelectedMediaIndex((idx) => (idx > 0 ? idx - 1 : mediaItems.length - 1));
+    setIsVideoPlaying(false);
+  };
+
+  const handleNext = () => {
+    if (mediaItems.length === 0) return;
+    setSelectedMediaIndex((idx) => (idx < mediaItems.length - 1 ? idx + 1 : 0));
+    setIsVideoPlaying(false);
   };
 
   /** Gate any save/download action behind registration */
@@ -274,7 +360,16 @@ export default function UnifiedEditor() {
     setProjectName(loaded.name);
     if (loaded.type === "photo" && loaded.photo) {
       const p = loaded.photo;
-      if (p.imageDataUrl) setCurrentImage(p.imageDataUrl);
+      if (p.imageDataUrl) {
+        // Re-hydrate saved image as a media item
+        setMediaItems([{
+          id: uid(),
+          type: "image",
+          fileName: "proyecto-guardado.png",
+          objectUrl: p.imageDataUrl,
+        }]);
+        setSelectedMediaIndex(0);
+      }
       setBrightness(p.brightness ?? 100);
       setContrast(p.contrast ?? 100);
       setSaturation(p.saturation ?? 100);
@@ -392,6 +487,17 @@ export default function UnifiedEditor() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+      {/* Hidden multi-file input */}
+      <input
+        ref={mediaFileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="hidden"
+        onChange={handleMediaInputChange}
+        aria-label="Seleccionar archivos de imagen o video"
+      />
+
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -418,9 +524,25 @@ export default function UnifiedEditor() {
             <h1 className="text-xl font-bold ml-1">
               {editorType === "photo" ? "Editor de Fotos" : "Editor de Videos"}
             </h1>
+            {mediaItems.length > 0 && (
+              <span className="hidden sm:inline text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
+                {mediaItems.length} elemento{mediaItems.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Agregar archivos button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-sm"
+              onClick={openFilePicker}
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Agregar archivos</span>
+            </Button>
+
             {/* Export limit warning for video */}
             {editorType === "video" && exportValidation.message && (
               <div className="hidden md:flex items-center gap-1 text-amber-600 text-xs">
@@ -503,28 +625,35 @@ export default function UnifiedEditor() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Canvas/Editor Area */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-4">
+            {/* Media Strip — shown in both modes */}
+            <MediaStrip
+              items={mediaItems}
+              selectedIndex={selectedMediaIndex}
+              onSelect={(idx) => {
+                setSelectedMediaIndex(idx);
+                setIsVideoPlaying(false);
+              }}
+              onRemove={handleRemoveMediaItem}
+              onAdd={openFilePicker}
+            />
+
             {editorType === "photo" ? (
               <div className="bg-white rounded-xl shadow-lg p-6">
                 {!currentImage ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <div className="flex flex-col items-center gap-3">
-                        <Image className="w-12 h-12 text-gray-400" />
-                        <p className="text-lg font-medium text-gray-700">
-                          Haz clic para cargar una imagen
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Formatos soportados: JPG, PNG (máx 4000x4000px)
-                        </p>
-                      </div>
-                    </label>
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                    onClick={openFilePicker}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <Image className="w-12 h-12 text-gray-400" />
+                      <p className="text-lg font-medium text-gray-700">
+                        Haz clic para cargar imágenes
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Formatos soportados: JPG, PNG (máx 4000x4000px)
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="relative flex justify-center">
@@ -565,22 +694,91 @@ export default function UnifiedEditor() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="text-center py-12">
-                  <Video className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">
-                    Editor de video con timeline y transiciones
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Usa el botón <strong>Guardar</strong> para renderizar y exportar el video MP4.
-                  </p>
-                  {renderBlocked && (
-                    <div className="mt-4 flex items-center justify-center gap-2 text-amber-600 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>{EXPORT_LIMIT_WARNING_ES}</span>
+              /* Video editor */
+              <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
+                {selectedMedia?.type === "video" ? (
+                  <>
+                    {/* Video preview */}
+                    <div className="relative bg-black rounded-lg overflow-hidden">
+                      <video
+                        ref={videoRef}
+                        src={selectedMedia.objectUrl}
+                        className="w-full max-h-80 object-contain"
+                        controls
+                        onPlay={() => setIsVideoPlaying(true)}
+                        onPause={() => setIsVideoPlaying(false)}
+                        onEnded={() => setIsVideoPlaying(false)}
+                      />
                     </div>
-                  )}
-                </div>
+
+                    {/* Transport controls */}
+                    <div className="flex items-center justify-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrev}
+                        disabled={mediaItems.length <= 1}
+                        title="Anterior"
+                      >
+                        <SkipBack className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePlayPause}
+                        title={isVideoPlaying ? "Pausar" : "Reproducir"}
+                      >
+                        {isVideoPlaying ? (
+                          <Pause className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNext}
+                        disabled={mediaItems.length <= 1}
+                        title="Siguiente"
+                      >
+                        <SkipForward className="w-4 h-4" />
+                      </Button>
+                      <span className="text-xs text-gray-500">
+                        {selectedMediaIndex + 1} / {mediaItems.length}
+                      </span>
+                    </div>
+                  </>
+                ) : selectedMedia?.type === "image" ? (
+                  <div className="flex justify-center">
+                    <img
+                      src={selectedMedia.objectUrl}
+                      alt={selectedMedia.fileName}
+                      className="max-w-full max-h-80 rounded-lg shadow-md object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-purple-400 transition-colors cursor-pointer"
+                    onClick={openFilePicker}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <Video className="w-12 h-12 text-gray-400" />
+                      <p className="text-lg font-medium text-gray-700">
+                        Añade fotos y videos para empezar
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Selecciona varios archivos a la vez (JPG, PNG, MP4, MOV…)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {renderBlocked && (
+                  <div className="flex items-center justify-center gap-2 text-amber-600 text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>{EXPORT_LIMIT_WARNING_ES}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
