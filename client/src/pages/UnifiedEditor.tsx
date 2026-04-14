@@ -4,13 +4,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Download, Share2, ArrowLeft, Image, Video } from "lucide-react";
+import { Download, Share2, ArrowLeft, Image, Video, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
+import VideoEditorLayout, { type VideoEditorState } from "@/components/VideoEditorLayout";
 
 
 type EditorType = "photo" | "video";
@@ -43,12 +41,22 @@ export default function UnifiedEditor() {
   const [rotation, setRotation] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState<string>("none");
 
-  // Estado de edición de videos
+  // Estado de edición de videos (legacy scenes)
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
   const [slowMotionSpeed, setSlowMotionSpeed] = useState(1);
   const [transitionType, setTransitionType] = useState("fade");
   const [transitionDuration, setTransitionDuration] = useState(500);
+
+  // Estado del nuevo editor de video
+  const [videoEditorState, setVideoEditorState] = useState<VideoEditorState>({
+    templateName: "Sin plantilla",
+    clips: [],
+    transitions: [],
+    audioTracks: [],
+    isPlaying: false,
+    currentClipIndex: 0,
+  });
 
   // Diálogos
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -196,6 +204,17 @@ export default function UnifiedEditor() {
     );
   }
 
+  // When in video mode, render the full-screen new layout
+  if (editorType === "video") {
+    return (
+      <VideoEditorLayout
+        onBack={() => navigate("/")}
+        state={videoEditorState}
+        onChange={setVideoEditorState}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
       {/* Header */}
@@ -214,38 +233,23 @@ export default function UnifiedEditor() {
           </div>
 
           <div className="flex items-center gap-3">
-            {editorType === "photo" && (
-              <>
-                <Button
-                  onClick={() => setShowShareDialog(true)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Compartir
-                </Button>
-                <Button
-                  onClick={handleDownload}
-                  size="sm"
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Download className="w-4 h-4" />
-                  Descargar
-                </Button>
-              </>
-            )}
-
-            {editorType === "video" && (
-              <Button
-                onClick={() => setShowRenderDialog(true)}
-                size="sm"
-                className="gap-2 bg-purple-600 hover:bg-purple-700"
-              >
-                <Download className="w-4 h-4" />
-                Renderizar Video
-              </Button>
-            )}
+            <Button
+              onClick={() => setShowShareDialog(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Compartir
+            </Button>
+            <Button
+              onClick={handleDownload}
+              size="sm"
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Download className="w-4 h-4" />
+              Descargar
+            </Button>
           </div>
         </div>
       </div>
@@ -255,53 +259,42 @@ export default function UnifiedEditor() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Canvas/Editor Area */}
           <div className="lg:col-span-3">
-            {editorType === "photo" ? (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                {!currentImage ? (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <div className="flex flex-col items-center gap-3">
-                        <Image className="w-12 h-12 text-gray-400" />
-                        <p className="text-lg font-medium text-gray-700">
-                          Haz clic para cargar una imagen
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Formatos soportados: JPG, PNG (máx 4000x4000px)
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="flex justify-center">
-                    <canvas
-                      ref={canvasRef}
-                      className="max-w-full max-h-96 rounded-lg shadow-md"
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              {!currentImage ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
                     />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="text-center py-12">
-                  <Video className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">
-                    Editor de video con timeline y transiciones
-                  </p>
+                    <div className="flex flex-col items-center gap-3">
+                      <Image className="w-12 h-12 text-gray-400" />
+                      <p className="text-lg font-medium text-gray-700">
+                        Haz clic para cargar una imagen
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Formatos soportados: JPG, PNG (máx 4000x4000px)
+                      </p>
+                    </div>
+                  </label>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="flex justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="max-w-full max-h-96 rounded-lg shadow-md"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
-              {editorType === "photo" && currentImage && (
+              {currentImage && (
                 <>
                   <EditorSidebar
                     brightness={brightness}
@@ -335,59 +328,6 @@ export default function UnifiedEditor() {
                     }}
                   />
                 </>
-              )}
-
-              {editorType === "video" && (
-                <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
-                  <h3 className="font-bold text-gray-900">Opciones de Video</h3>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Velocidad: {slowMotionSpeed.toFixed(2)}x
-                    </label>
-                    <Slider
-                      value={[slowMotionSpeed]}
-                      onValueChange={(val) => setSlowMotionSpeed(val[0])}
-                      min={0.25}
-                      max={2}
-                      step={0.25}
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Transición
-                    </label>
-                    <Select value={transitionType} onValueChange={setTransitionType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fade">Fundido</SelectItem>
-                        <SelectItem value="slide">Barrido</SelectItem>
-                        <SelectItem value="zoom">Zoom</SelectItem>
-                        <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
-                        <SelectItem value="wipeRight">Barrido Der</SelectItem>
-                        <SelectItem value="none">Ninguno</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Duración: {transitionDuration}ms
-                    </label>
-                    <Slider
-                      value={[transitionDuration]}
-                      onValueChange={(val) => setTransitionDuration(val[0])}
-                      min={100}
-                      max={2000}
-                      step={100}
-                      className="w-full"
-                    />
-                  </div>
-                </div>
               )}
             </div>
           </div>
