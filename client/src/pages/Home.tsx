@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Camera, Video, Mic, Settings, LogOut, Globe } from 'lucide-react';
+import { Camera, Video, Mic, Settings, LogOut, Globe, LayoutTemplate } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663287789737/MuedJEETeftFMeBGAmYga5/peracut-logo-7jjx5QyvZTJ9KfbBdzD8sv.webp';
@@ -183,7 +183,7 @@ export default function Home() {
         </div>
 
         {/* Opciones de Proyecto */}
-        <div className="grid gap-4 sm:grid-cols-3 w-full max-w-4xl mb-12">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 w-full max-w-4xl mb-12">
           {/* Editar Foto */}
           <Card
             className="group relative overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-105 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800"
@@ -229,6 +229,22 @@ export default function Home() {
               </div>
               <h3 className="font-semibold text-foreground">{t('project.record')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t('project.recordDesc')}</p>
+            </div>
+          </Card>
+
+          {/* Plantillas */}
+          <Card
+            className="group relative overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-105 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800"
+            onClick={() => navigate('/templates')}
+          >
+            <div className="p-6 text-center">
+              <div className="mb-4 flex justify-center">
+                <div className="rounded-lg bg-green-500/20 p-3">
+                  <LayoutTemplate className="h-8 w-8 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <h3 className="font-semibold text-foreground">Plantillas</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Crea videos con estructuras prediseñadas y estilos visuales listos.</p>
             </div>
           </Card>
         </div>
