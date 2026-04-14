@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
-const registerUserMock = vi.fn();
-const notifyRegistrationMock = vi.fn();
+const { registerUserMock, notifyRegistrationMock } = vi.hoisted(() => ({
+  registerUserMock: vi.fn(),
+  notifyRegistrationMock: vi.fn(),
+}));
 
 vi.mock("./auth", async () => {
   const actual = await vi.importActual<typeof import("./auth")>("./auth");

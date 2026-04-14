@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const notifyOwnerMock = vi.fn();
+const { notifyOwnerMock } = vi.hoisted(() => ({
+  notifyOwnerMock: vi.fn(),
+}));
 
 vi.mock("./_core/notification", () => ({
   notifyOwner: notifyOwnerMock,
