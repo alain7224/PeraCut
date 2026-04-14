@@ -8,6 +8,19 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+// Inject Umami analytics only when env vars are properly configured (production)
+if (import.meta.env.PROD) {
+  const analyticsEndpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
+  const analyticsWebsiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID;
+  if (analyticsEndpoint && analyticsWebsiteId) {
+    const s = document.createElement('script');
+    s.defer = true;
+    s.src = `${analyticsEndpoint}/umami`;
+    s.setAttribute('data-website-id', analyticsWebsiteId);
+    document.head.appendChild(s);
+  }
+}
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
@@ -18,7 +31,10 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  const loginUrl = getLoginUrl();
+  if (!loginUrl) return; // OAuth not configured; skip redirect
+
+  window.location.href = loginUrl;
 };
 
 queryClient.getQueryCache().subscribe(event => {

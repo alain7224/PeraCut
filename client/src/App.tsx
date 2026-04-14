@@ -8,12 +8,14 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import { ResponsiveLayout } from "./components/ResponsiveLayout";
 import Home from "./pages/Home";
 import UnifiedEditor from "./pages/UnifiedEditor";
+import TemplatesPage from "./pages/TemplatesPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/templates"} component={TemplatesPage} />
       <Route path={"/editor/:projectId"} component={UnifiedEditor} />
       <Route path={"/editor"} component={UnifiedEditor} />
       <Route path={"/404"} component={NotFound} />
