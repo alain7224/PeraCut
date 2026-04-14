@@ -45,12 +45,12 @@ export const authRouter = router({
           const userId = await registerUser({
             email: input.email,
             name: input.name,
-          lastName: input.lastName,
-          username: input.username,
+            lastName: input.lastName,
+            username: input.username,
             age: input.age,
             country: input.country,
           });
-          await notifyRegistration(input);
+          void notifyRegistration(input);
 
           return {
             success: true,

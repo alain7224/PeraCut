@@ -53,7 +53,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         try {
           const userId = await registerUser(input);
-          await notifyRegistration(input);
+          void notifyRegistration(input);
           return { success: true, userId, message: 'Usuario registrado exitosamente' };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Error al registrar usuario';
