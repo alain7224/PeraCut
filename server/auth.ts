@@ -6,6 +6,7 @@
 import { eq } from 'drizzle-orm';
 import { getDb } from './db';
 import { users } from '../drizzle/schema';
+import { notifyOwner } from './_core/notification';
 
 export interface UserData {
   email: string;
@@ -14,6 +15,21 @@ export interface UserData {
   age?: number;
   country?: string;
   username: string;
+}
+
+function buildRegistrationNotification(data: UserData) {
+  const details = [
+    `Nombre: ${data.name} ${data.lastName}`.trim(),
+    `Username: ${data.username}`,
+    `Email: ${data.email}`,
+    data.age !== undefined ? `Edad: ${data.age}` : null,
+    data.country ? `País: ${data.country}` : null,
+  ].filter(Boolean);
+
+  return {
+    title: 'Nuevo registro en PeraCut',
+    content: ['Se registró un nuevo usuario.', ...details].join('\n'),
+  };
 }
 
 /**
@@ -70,6 +86,17 @@ export async function registerUser(data: UserData): Promise<number> {
   if (newUser.length === 0) throw new Error('Error al crear usuario');
   
   return newUser[0].id;
+}
+
+export async function notifyRegistration(data: UserData): Promise<void> {
+  try {
+    const delivered = await notifyOwner(buildRegistrationNotification(data));
+    if (!delivered) {
+      console.warn('[Auth] Registration notification was not delivered');
+    }
+  } catch (error) {
+    console.warn('[Auth] Failed to send registration notification:', error);
+  }
 }
 
 /**

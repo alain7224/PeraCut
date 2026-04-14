@@ -16,7 +16,13 @@ import {
 } from "./db";
 import { imageGenerationRouter } from "./imageGeneration";
 import { presetsRouter } from "./presets";
-import { validateMasterKey, registerUser, getUserByEmail, getUserByUsername } from "./auth";
+import {
+  validateMasterKey,
+  registerUser,
+  getUserByEmail,
+  getUserByUsername,
+  notifyRegistration,
+} from "./auth";
 
 export const appRouter = router({
   system: systemRouter,
@@ -47,6 +53,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         try {
           const userId = await registerUser(input);
+          await notifyRegistration(input);
           return { success: true, userId, message: 'Usuario registrado exitosamente' };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Error al registrar usuario';

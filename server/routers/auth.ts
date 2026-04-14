@@ -4,7 +4,13 @@
 
 import { z } from 'zod';
 import { publicProcedure, router } from '../_core/trpc';
-import { validateMasterKey, registerUser, getUserByEmail, getUserByUsername } from '../auth';
+import {
+  validateMasterKey,
+  registerUser,
+  getUserByEmail,
+  getUserByUsername,
+  notifyRegistration,
+} from '../auth';
 
 export const authRouter = router({
   /**
@@ -34,19 +40,20 @@ export const authRouter = router({
         country: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
-      try {
-        const userId = await registerUser({
-          email: input.email,
-          name: input.name,
+      .mutation(async ({ input }) => {
+        try {
+          const userId = await registerUser({
+            email: input.email,
+            name: input.name,
           lastName: input.lastName,
           username: input.username,
-          age: input.age,
-          country: input.country,
-        });
+            age: input.age,
+            country: input.country,
+          });
+          await notifyRegistration(input);
 
-        return {
-          success: true,
+          return {
+            success: true,
           userId,
           message: 'Usuario registrado exitosamente',
         };
