@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type RefObject } from "react";
+import { useState, useCallback, type RefObject } from "react";
 import {
   DndContext,
   closestCenter,
@@ -26,17 +26,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import TemplateSelector from "@/components/TemplateSelector";
 import {
   Video,
   Plus,
   ArrowLeft,
-  Home,
   Play,
   Pause,
   SkipBack,
   SkipForward,
   Download,
-  Save,
   AlertTriangle,
   LayoutTemplate,
   GripVertical,
@@ -69,7 +69,7 @@ export interface VideoEditorLayoutProps {
 
   /* Template */
   loadedTemplate: TemplatePreset | null;
-  onChangeTemplate: () => void;
+  onSelectTemplate: (templateId: string) => void;
 
   /* Export / save */
   renderBlocked: boolean;
@@ -113,7 +113,7 @@ export default function VideoEditorLayout({
   transitionDuration,
   onTransitionDurationChange,
   loadedTemplate,
-  onChangeTemplate,
+  onSelectTemplate,
   renderBlocked,
   exportWarning,
   onSaveVideo,
@@ -121,6 +121,7 @@ export default function VideoEditorLayout({
   saveButton,
   fileInput,
 }: VideoEditorLayoutProps) {
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   /* ── Drag-and-drop state ─────────────────────────────────────────────── */
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -299,7 +300,7 @@ export default function VideoEditorLayout({
                   </p>
                   <button
                     className="mt-2 text-xs text-green-600 underline underline-offset-2 hover:text-green-800"
-                    onClick={onChangeTemplate}
+                    onClick={() => setShowTemplateDialog(true)}
                   >
                     Cambiar plantilla
                   </button>
@@ -309,7 +310,7 @@ export default function VideoEditorLayout({
                   variant="outline"
                   size="sm"
                   className="w-full gap-1.5 text-xs"
-                  onClick={onChangeTemplate}
+                  onClick={() => setShowTemplateDialog(true)}
                 >
                   <LayoutTemplate className="w-3.5 h-3.5" />
                   Elegir plantilla
@@ -476,6 +477,23 @@ export default function VideoEditorLayout({
           </DndContext>
         )}
       </div>
+
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle>Plantillas</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-6 h-full min-h-0">
+            <TemplateSelector
+              onSelectTemplate={(template) => {
+                onSelectTemplate(template.id);
+                setShowTemplateDialog(false);
+              }}
+              onClose={() => setShowTemplateDialog(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

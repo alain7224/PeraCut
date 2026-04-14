@@ -512,7 +512,7 @@ export default function UnifiedEditor() {
           transitionDuration={transitionDuration}
           onTransitionDurationChange={setTransitionDuration}
           loadedTemplate={loadedTemplate}
-          onChangeTemplate={() => navigate("/templates")}
+          onSelectTemplate={(templateId) => navigate(`/editor?template=${templateId}`)}
           renderBlocked={renderBlocked}
           exportWarning={!exportValidation.valid ? EXPORT_LIMIT_WARNING_ES : null}
           onSaveVideo={() => requireRegistration(() => setShowRenderDialog(true))}
