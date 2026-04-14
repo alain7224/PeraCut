@@ -81,16 +81,6 @@ export default function UnifiedEditor() {
   const [transitionType, setTransitionType] = useState("fade");
   const [transitionDuration, setTransitionDuration] = useState(500);
 
-  // Estado del nuevo editor de video
-  const [videoEditorState, setVideoEditorState] = useState<VideoEditorState>({
-    templateName: "Sin plantilla",
-    clips: [],
-    transitions: [],
-    audioTracks: [],
-    isPlaying: false,
-    currentClipIndex: 0,
-  });
-
   // Diálogos
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showRenderDialog, setShowRenderDialog] = useState(false);
