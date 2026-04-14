@@ -200,35 +200,17 @@ export function getTemplateById(id: string): TemplatePreset | undefined {
 }
 
 /**
- * Adjusts scene durations so they fill `mediaDurationMs` according to fillStrategy,
- * while preserving proportions and keeping total === template.durationMs.
+ * Applies a template to incoming media while preserving the template timeline.
+ * `mediaDurationMs` can influence how content is filled internally, but scene
+ * slots must keep the template's fixed duration budget.
  */
 export function applyTemplateToMedia(
   template: TemplatePreset,
   mediaDurationMs: number
 ): TemplatePreset {
-  const totalTemplateDuration = template.durationMs;
-  const sceneCount = template.scenes.length;
-
-  let adjustedScenes: TemplatePresetScene[];
-
-  if (template.fillStrategy === 'loop' || template.fillStrategy === 'freeze') {
-    // Keep original scene durations; media will loop/freeze to fill each slot
-    adjustedScenes = template.scenes.map((s) => ({ ...s }));
-  } else {
-    // 'stretch': scale each scene proportionally to available media
-    const scale = mediaDurationMs / totalTemplateDuration;
-    const rawDurations = template.scenes.map((s) => Math.round(s.durationMs * scale));
-    const rawTotal = rawDurations.reduce((a, b) => a + b, 0);
-    const diff = mediaDurationMs - rawTotal;
-    // Distribute rounding diff on the last scene
-    rawDurations[sceneCount - 1] += diff;
-
-    adjustedScenes = template.scenes.map((s, i) => ({
-      ...s,
-      durationMs: rawDurations[i],
-    }));
-  }
-
-  return { ...template, scenes: adjustedScenes };
+  void mediaDurationMs;
+  return {
+    ...template,
+    scenes: template.scenes.map((s) => ({ ...s })),
+  };
 }
