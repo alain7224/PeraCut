@@ -4,20 +4,16 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus, AlertTriangle, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
 import VideoEditorLayout, { type VideoEditorState } from "@/components/VideoEditorLayout";
-import MusicPanel from "@/components/MusicPanel";
 import ExportSaveDialog from "@/components/ExportSaveDialog";
 import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
 import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
 import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
-import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
+import { validateExportDuration, exceedsExportLimit } from "@/lib/durationValidation";
 import { getTemplateById } from "@/lib/templateRegistry";
 import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
 
@@ -565,48 +561,23 @@ export default function UnifiedEditor() {
               <span className="hidden sm:inline">Agregar archivos</span>
             </Button>
 
-            {/* Export limit warning for video */}
-            {editorType === "video" && exportValidation.message && (
-              <div className="hidden md:flex items-center gap-1 text-amber-600 text-xs">
-                <AlertTriangle className="w-3 h-3" />
-                <span>{EXPORT_LIMIT_WARNING_ES}</span>
-              </div>
-            )}
-
-            {editorType === "photo" && (
-              <>
-                <Button
-                  onClick={() => requireRegistration(() => setShowShareDialog(true))}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Compartir</span>
-                </Button>
-                <Button
-                  onClick={handleDownload}
-                  size="sm"
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Descargar</span>
-                </Button>
-              </>
-            )}
-
-            {editorType === "video" && (
-              <Button
-                onClick={() => requireRegistration(() => setShowRenderDialog(true))}
-                size="sm"
-                className="gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-                disabled={renderBlocked}
-                title={renderBlocked ? EXPORT_LIMIT_WARNING_ES : "Guardar video"}
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Guardar Video</span>
-              </Button>
-            )}
+            <Button
+              onClick={() => requireRegistration(() => setShowShareDialog(true))}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Compartir</span>
+            </Button>
+            <Button
+              onClick={handleDownload}
+              size="sm"
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Descargar</span>
+            </Button>
 
             {/* Unified Save / Export button */}
             <ExportSaveDialog
@@ -625,7 +596,7 @@ export default function UnifiedEditor() {
             >
               <Button
                 size="sm"
-                className={`gap-2 ${editorType === "photo" ? "bg-blue-600 hover:bg-blue-700" : "bg-purple-600 hover:bg-purple-700"}`}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
               >
                 <Save className="w-4 h-4" />
                 Guardar
@@ -634,14 +605,6 @@ export default function UnifiedEditor() {
           </div>
         </div>
       </div>
-
-      {/* Duration warning banner */}
-      {editorType === "video" && !exportValidation.valid && (
-        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
-          {EXPORT_LIMIT_WARNING_ES}
-        </div>
-      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -660,149 +623,60 @@ export default function UnifiedEditor() {
               onAdd={openFilePicker}
             />
 
-            {editorType === "photo" ? (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                {!currentImage ? (
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
-                    onClick={openFilePicker}
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <Image className="w-12 h-12 text-gray-400" />
-                      <p className="text-lg font-medium text-gray-700">
-                        Haz clic para cargar imágenes
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Formatos soportados: JPG, PNG (máx 4000x4000px)
-                      </p>
-                    </div>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              {!currentImage ? (
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={openFilePicker}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <Image className="w-12 h-12 text-gray-400" />
+                    <p className="text-lg font-medium text-gray-700">
+                      Haz clic para cargar imágenes
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Formatos soportados: JPG, PNG (máx 4000x4000px)
+                    </p>
                   </div>
-                ) : (
-                  <div className="relative flex justify-center">
-                    <canvas
-                      ref={canvasRef}
-                      className="max-w-full max-h-96 rounded-lg shadow-md"
-                    />
-                    {/* Sticker overlays (visual only — baked on export) */}
-                    {stickers.map((s) => {
-                      const def = STICKERS.find((st) => st.id === s.stickerId);
-                      if (!def) return null;
-                      return (
-                        <div
-                          key={s.id}
-                          className="absolute cursor-move select-none"
-                          style={{
-                            left: `${s.x}%`,
-                            top: `${s.y}%`,
-                            transform: `translate(-50%, -50%) rotate(${s.rotation}deg) scale(${s.scale})`,
-                          }}
+                </div>
+              ) : (
+                <div className="relative flex justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="max-w-full max-h-96 rounded-lg shadow-md"
+                  />
+                  {/* Sticker overlays (visual only — baked on export) */}
+                  {stickers.map((s) => {
+                    const def = STICKERS.find((st) => st.id === s.stickerId);
+                    if (!def) return null;
+                    return (
+                      <div
+                        key={s.id}
+                        className="absolute cursor-move select-none"
+                        style={{
+                          left: `${s.x}%`,
+                          top: `${s.y}%`,
+                          transform: `translate(-50%, -50%) rotate(${s.rotation}deg) scale(${s.scale})`,
+                        }}
+                      >
+                        <img
+                          src={stickerToDataUrl(def)}
+                          alt={def.name}
+                          className="w-16 h-16 pointer-events-none"
+                        />
+                        <button
+                          onClick={() => handleRemoveSticker(s.id)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          title="Eliminar sticker"
                         >
-                          <img
-                            src={stickerToDataUrl(def)}
-                            alt={def.name}
-                            className="w-16 h-16 pointer-events-none"
-                          />
-                          <button
-                            onClick={() => handleRemoveSticker(s.id)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                            title="Eliminar sticker"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Video editor */
-              <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                {selectedMedia?.type === "video" ? (
-                  <>
-                    {/* Video preview */}
-                    <div className="relative bg-black rounded-lg overflow-hidden">
-                      <video
-                        ref={videoRef}
-                        src={selectedMedia.objectUrl}
-                        className="w-full max-h-80 object-contain"
-                        controls
-                        onPlay={() => setIsVideoPlaying(true)}
-                        onPause={() => setIsVideoPlaying(false)}
-                        onEnded={() => setIsVideoPlaying(false)}
-                      />
-                    </div>
-
-                    {/* Transport controls */}
-                    <div className="flex items-center justify-center gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePrev}
-                        disabled={mediaItems.length <= 1}
-                        title="Anterior"
-                      >
-                        <SkipBack className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePlayPause}
-                        title={isVideoPlaying ? "Pausar" : "Reproducir"}
-                      >
-                        {isVideoPlaying ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNext}
-                        disabled={mediaItems.length <= 1}
-                        title="Siguiente"
-                      >
-                        <SkipForward className="w-4 h-4" />
-                      </Button>
-                      <span className="text-xs text-gray-500">
-                        {selectedMediaIndex + 1} / {mediaItems.length}
-                      </span>
-                    </div>
-                  </>
-                ) : selectedMedia?.type === "image" ? (
-                  <div className="flex justify-center">
-                    <img
-                      src={selectedMedia.objectUrl}
-                      alt={selectedMedia.fileName}
-                      className="max-w-full max-h-80 rounded-lg shadow-md object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-purple-400 transition-colors cursor-pointer"
-                    onClick={openFilePicker}
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <Video className="w-12 h-12 text-gray-400" />
-                      <p className="text-lg font-medium text-gray-700">
-                        Añade fotos y videos para empezar
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Selecciona varios archivos a la vez (JPG, PNG, MP4, MOV…)
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {renderBlocked && (
-                  <div className="flex items-center justify-center gap-2 text-amber-600 text-sm">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>{EXPORT_LIMIT_WARNING_ES}</span>
-                  </div>
-                )}
-              </div>
-            )}
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -884,78 +758,6 @@ export default function UnifiedEditor() {
                 </>
               )}
 
-              {editorType === "video" && (
-                <>
-                  <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
-                    <h3 className="font-bold text-gray-900">Opciones de Video</h3>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Velocidad: {slowMotionSpeed.toFixed(2)}x
-                      </label>
-                      <Slider
-                        value={[slowMotionSpeed]}
-                        onValueChange={(val) => setSlowMotionSpeed(val[0])}
-                        min={0.25}
-                        max={2}
-                        step={0.25}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Transición
-                      </label>
-                      <Select value={transitionType} onValueChange={setTransitionType}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fade">Fundido</SelectItem>
-                          <SelectItem value="slide">Barrido</SelectItem>
-                          <SelectItem value="zoom">Zoom</SelectItem>
-                          <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
-                          <SelectItem value="wipeRight">Barrido Der</SelectItem>
-                          <SelectItem value="none">Ninguno</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Duración: {transitionDuration}ms
-                      </label>
-                      <Slider
-                        value={[transitionDuration]}
-                        onValueChange={(val) => setTransitionDuration(val[0])}
-                        min={100}
-                        max={2000}
-                        step={100}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {loadedTemplate && (
-                    <div className="bg-green-50 rounded-xl shadow-sm border border-green-200 p-3">
-                      <p className="text-xs font-semibold text-green-800 mb-1">Plantilla activa</p>
-                      <p className="text-xs text-green-700">
-                        {loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}s · {loadedTemplate.aspectRatio}
-                      </p>
-                      <button
-                        className="mt-2 text-xs text-green-600 underline underline-offset-2 hover:text-green-800"
-                        onClick={() => navigate("/templates")}
-                        aria-label="Cambiar plantilla"
-                      >
-                        Cambiar plantilla
-                      </button>
-                    </div>
-                  )}
-
-                  <MusicPanel />
-                </>
-              )}
             </div>
           </div>
         </div>
