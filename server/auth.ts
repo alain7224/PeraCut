@@ -18,8 +18,9 @@ export interface UserData {
 }
 
 function buildRegistrationNotification(data: UserData) {
+  const fullName = [data.name, data.lastName].filter(Boolean).join(' ').trim();
   const details = [
-    `Nombre: ${data.name} ${data.lastName}`.trim(),
+    fullName ? `Nombre: ${fullName}` : null,
     `Username: ${data.username}`,
     `Email: ${data.email}`,
     data.age !== undefined ? `Edad: ${data.age}` : null,
