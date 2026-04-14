@@ -11,6 +11,7 @@ import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
+import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
 import MusicPanel from "@/components/MusicPanel";
 import ExportSaveDialog from "@/components/ExportSaveDialog";
 import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
@@ -247,6 +248,16 @@ export default function UnifiedEditor() {
     handleMediaFiles(e.target.files);
     // Reset so same files can be re-selected
     e.target.value = "";
+  };
+
+  /** Gate any save/download action behind registration */
+  const requireRegistration = (action: () => void) => {
+    if (isRegistered()) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowRegistrationModal(true);
+    }
   };
 
   const handleRemoveMediaItem = (id: string) => {
@@ -669,6 +680,7 @@ export default function UnifiedEditor() {
                   className="gap-2 bg-blue-600 hover:bg-blue-700"
                 >
                   <Download className="w-4 h-4" />
+                  Guardar
                   <span className="hidden sm:inline">Descargar</span>
                 </Button>
               </>
@@ -690,9 +702,12 @@ export default function UnifiedEditor() {
               onProjectLoaded={handleProjectLoaded}
             >
               <Button
+                onClick={() => requireRegistration(() => setShowRenderDialog(true))}
                 size="sm"
                 className={`gap-2 ${editorType === "photo" ? "bg-blue-600 hover:bg-blue-700" : "bg-purple-600 hover:bg-purple-700"}`}
               >
+                <Download className="w-4 h-4" />
+                Guardar Video
                 <Save className="w-4 h-4" />
                 Guardar
               </Button>
