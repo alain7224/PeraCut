@@ -52,7 +52,7 @@ export default function EditorShellLayout({
 
           <Button variant="outline" size="sm" onClick={onTogglePause} className="gap-2">
             {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-            PAUSA
+            {isPaused ? "REPRODUCIR" : "PAUSAR"}
           </Button>
         </div>
       </div>

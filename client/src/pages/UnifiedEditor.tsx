@@ -110,8 +110,13 @@ export default function UnifiedEditor() {
     () => scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0),
     [scenes],
   );
+  const hasRenderableVideoMedia = useMemo(
+    () => scenes.some((scene) => !!scene.mediaUrl),
+    [scenes],
+  );
 
-  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
+  const renderBlocked =
+    editorType === "video" && (exceedsExportLimit(totalVideoDurationMs) || !hasRenderableVideoMedia);
   const showDurationWarning = editorType === "video" && totalVideoDurationMs >= MAX_EXPORT_DURATION_MS;
 
   const projectQuery = trpc.projects.get.useQuery(
@@ -209,10 +214,7 @@ export default function UnifiedEditor() {
     (items: MediaItem[], template = loadedTemplate): Scene[] => {
       const parsedProjectId = parseInt(projectId || "0");
       if (template) {
-        const mediaDurationMs = items.length > 0
-          ? items.reduce((sum, item) => sum + (item.durationMs ?? DEFAULT_SCENE_MS), 0)
-          : template.durationMs;
-        const applied = applyTemplateToMedia(template, mediaDurationMs);
+        const applied = applyTemplateToMedia(template);
         return applied.scenes.map((tplScene, idx) => {
           const media = items.length > 0 ? items[idx % items.length] : null;
           return {
@@ -494,6 +496,10 @@ export default function UnifiedEditor() {
   };
 
   const compactButtonClass = "w-full h-8 justify-start text-xs px-2";
+  const sceneToMediaIndex = useCallback(
+    (sceneIdx: number) => (mediaItems.length === 0 ? 0 : sceneIdx % mediaItems.length),
+    [mediaItems.length],
+  );
 
   const exportDialogButtonGuard = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (isRegistered()) return;
@@ -545,7 +551,8 @@ export default function UnifiedEditor() {
                 key={item.id}
                 onClick={() => {
                   setSelectedMediaIndex(idx);
-                  setSelectedSceneIndex(Math.min(idx, Math.max(0, scenes.length - 1)));
+                  const matchingScene = scenes.findIndex((_, sceneIdx) => sceneToMediaIndex(sceneIdx) === idx);
+                  setSelectedSceneIndex(matchingScene >= 0 ? matchingScene : 0);
                   setIsVideoPaused(true);
                 }}
                 className={`w-full text-left p-1.5 rounded-lg border ${
@@ -878,7 +885,7 @@ export default function UnifiedEditor() {
               key={scene.id}
               onClick={() => {
                 setSelectedSceneIndex(idx);
-                setSelectedMediaIndex(Math.min(idx, Math.max(0, mediaItems.length - 1)));
+                setSelectedMediaIndex(sceneToMediaIndex(idx));
               }}
               className={`min-w-[120px] rounded-md border px-2 py-1.5 text-left ${
                 idx === selectedSceneIndex ? "border-purple-500 bg-purple-50" : "border-gray-200"
