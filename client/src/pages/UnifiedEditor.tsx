@@ -1,40 +1,20 @@
-<<<<<<< copilot/add-template-system-presets
-import { useState, useRef, useEffect, useMemo } from "react";
-=======
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
->>>>>>> main
 import { useParams, useLocation, useSearch } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-<<<<<<< copilot/add-template-system-presets
-import { Loader2, Download, Share2, ArrowLeft, Image, Video, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
-import { EditorSidebar } from "@/components/EditorSidebar";
-import PresetManager from "@/components/PresetManager";
-import MusicPanel from "@/components/MusicPanel";
-import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
-import { getTemplateById, applyTemplateToMedia } from "@/lib/templateRegistry";
-=======
-import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus, AlertTriangle, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
 import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
-import MusicPanel from "@/components/MusicPanel";
 import ExportSaveDialog from "@/components/ExportSaveDialog";
-import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
 import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
 import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
-import { validateExportDuration, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
+import { MAX_EXPORT_DURATION_MS, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
 import { getTemplateById } from "@/lib/templateRegistry";
 import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
 import VideoEditorLayout from "@/components/VideoEditorLayout";
->>>>>>> main
 
 
 type EditorType = "photo" | "video";
@@ -57,7 +37,6 @@ export default function UnifiedEditor() {
   const { projectId } = useParams<{ projectId: string }>();
   const [, navigate] = useLocation();
   const searchString = useSearch();
-  const { user } = useAuth();
 
   // Parse query params
   const searchParams = new URLSearchParams(searchString);
@@ -67,10 +46,7 @@ export default function UnifiedEditor() {
   // Estado del editor
   const [editorType, setEditorType] = useState<EditorType>(editorTypeParam ?? "photo");
   const [showTypeSelector, setShowTypeSelector] = useState(!projectId && !editorTypeParam && !templateParam);
-<<<<<<< copilot/add-template-system-presets
-=======
   const [projectName, setProjectName] = useState("Mi Proyecto");
->>>>>>> main
   const [isLoading, setIsLoading] = useState(false);
 
   // Estado de edición de fotos
@@ -94,7 +70,6 @@ export default function UnifiedEditor() {
 
   // Estado de edición de videos
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
   const [slowMotionSpeed, setSlowMotionSpeed] = useState(1);
   const [transitionType, setTransitionType] = useState("fade");
   const [transitionDuration, setTransitionDuration] = useState(500);
@@ -117,23 +92,8 @@ export default function UnifiedEditor() {
     return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
   }, [scenes, loadedTemplate]);
 
-  const exportValidation = validateExportDuration(totalVideoDurationMs);
   const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
-
-  // Template loading
-  const loadedTemplate = useMemo(() => {
-    if (!templateParam) return null;
-    return getTemplateById(templateParam) ?? null;
-  }, [templateParam]);
-
-  // Total duration for video scenes
-  const totalVideoDurationMs = useMemo(() => {
-    if (loadedTemplate) return loadedTemplate.durationMs;
-    return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
-  }, [scenes, loadedTemplate]);
-
-  const exportValidation = validateExportDuration(totalVideoDurationMs);
-  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
+  const showExportDurationWarning = totalVideoDurationMs >= MAX_EXPORT_DURATION_MS;
 
   // Queries
   const projectQuery = trpc.projects.get.useQuery(
@@ -330,16 +290,6 @@ export default function UnifiedEditor() {
     if (mediaItems.length === 0) return;
     setSelectedMediaIndex((idx) => (idx < mediaItems.length - 1 ? idx + 1 : 0));
     setIsVideoPlaying(false);
-  };
-
-  /** Gate any save/download action behind registration */
-  const requireRegistration = (action: () => void) => {
-    if (isRegistered()) {
-      action();
-    } else {
-      setPendingAction(() => action);
-      setShowRegistrationModal(true);
-    }
   };
 
   // ── Sticker helpers ────────────────────────────────────────────────────────
@@ -557,7 +507,7 @@ export default function UnifiedEditor() {
           loadedTemplate={loadedTemplate}
           onSelectTemplate={(templateId) => navigate(`/editor?template=${templateId}`)}
           renderBlocked={renderBlocked}
-          exportWarning={!exportValidation.valid ? EXPORT_LIMIT_WARNING_ES : null}
+          exportWarning={showExportDurationWarning ? EXPORT_LIMIT_WARNING_ES : null}
           onSaveVideo={() => requireRegistration(() => setShowRenderDialog(true))}
           onNavigateHome={() => navigate("/")}
           saveButton={
@@ -736,15 +686,9 @@ export default function UnifiedEditor() {
               <Button
                 onClick={() => requireRegistration(() => setShowRenderDialog(true))}
                 size="sm"
-<<<<<<< copilot/add-template-system-presets
                 disabled={renderBlocked}
                 className="gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-=======
-                className={`gap-2 ${editorType === "photo" ? "bg-blue-600 hover:bg-blue-700" : "bg-purple-600 hover:bg-purple-700"}`}
->>>>>>> main
               >
-                <Download className="w-4 h-4" />
-                Guardar Video
                 <Save className="w-4 h-4" />
                 Guardar
               </Button>
@@ -752,17 +696,6 @@ export default function UnifiedEditor() {
           </div>
         </div>
       </div>
-
-      {/* Duration warning banner */}
-<<<<<<< copilot/add-template-system-presets
-      {editorType === "video" && !exportValidation.valid && (
-        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
-          {EXPORT_LIMIT_WARNING_ES}
-        </div>
-      )}
-=======
->>>>>>> main
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
@@ -873,75 +806,6 @@ export default function UnifiedEditor() {
                     }}
                   />
 
-<<<<<<< copilot/add-template-system-presets
-              {editorType === "video" && (
-                <>
-                  <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
-                    <h3 className="font-bold text-gray-900">Opciones de Video</h3>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Velocidad: {slowMotionSpeed.toFixed(2)}x
-                      </label>
-                      <Slider
-                        value={[slowMotionSpeed]}
-                        onValueChange={(val) => setSlowMotionSpeed(val[0])}
-                        min={0.25}
-                        max={2}
-                        step={0.25}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Transición
-                      </label>
-                      <Select value={transitionType} onValueChange={setTransitionType}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fade">Fundido</SelectItem>
-                          <SelectItem value="slide">Barrido</SelectItem>
-                          <SelectItem value="zoom">Zoom</SelectItem>
-                          <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
-                          <SelectItem value="wipeRight">Barrido Der</SelectItem>
-                          <SelectItem value="none">Ninguno</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        Duración: {transitionDuration}ms
-                      </label>
-                      <Slider
-                        value={[transitionDuration]}
-                        onValueChange={(val) => setTransitionDuration(val[0])}
-                        min={100}
-                        max={2000}
-                        step={100}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {loadedTemplate && (
-                    <div className="bg-green-50 rounded-xl shadow-sm border border-green-200 p-3">
-                      <p className="text-xs font-semibold text-green-800 mb-1">Plantilla activa</p>
-                      <p className="text-xs text-green-700">{loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}s · {loadedTemplate.aspectRatio}</p>
-                      <button
-                        className="mt-2 text-xs text-green-600 underline underline-offset-2 hover:text-green-800"
-                        onClick={() => navigate('/templates')}
-                      >
-                        Cambiar plantilla
-                      </button>
-                    </div>
-                  )}
-
-                  <MusicPanel />
-=======
                   {/* Sticker panel */}
                   <div className="bg-white rounded-xl shadow-lg p-4">
                     <button
@@ -981,7 +845,6 @@ export default function UnifiedEditor() {
                       </div>
                     )}
                   </div>
->>>>>>> main
                 </>
               )}
             </div>
