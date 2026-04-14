@@ -200,14 +200,9 @@ export function getTemplateById(id: string): TemplatePreset | undefined {
 }
 
 /**
- * Applies a template to incoming media while preserving the template timeline.
- * `mediaDurationMs` can influence how content is filled internally, but scene
- * slots must keep the template's fixed duration budget.
+ * Returns a cloned template preserving its fixed scene timeline.
  */
-export function applyTemplateToMedia(
-  template: TemplatePreset,
-  _mediaDurationMs: number
-): TemplatePreset {
+export function applyTemplateToMedia(template: TemplatePreset): TemplatePreset {
   return {
     ...template,
     scenes: template.scenes.map((s) => ({ ...s })),
