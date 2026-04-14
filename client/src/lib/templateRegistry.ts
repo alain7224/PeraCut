@@ -206,9 +206,8 @@ export function getTemplateById(id: string): TemplatePreset | undefined {
  */
 export function applyTemplateToMedia(
   template: TemplatePreset,
-  mediaDurationMs: number
+  _mediaDurationMs: number
 ): TemplatePreset {
-  void mediaDurationMs;
   return {
     ...template,
     scenes: template.scenes.map((s) => ({ ...s })),
