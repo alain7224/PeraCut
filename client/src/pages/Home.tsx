@@ -65,6 +65,10 @@ export default function Home() {
   };
 
   const handleNewProject = (type: 'photo' | 'video' | 'record') => {
+    if (type === 'record') {
+      navigate('/record');
+      return;
+    }
     navigate(`/editor?type=${type}`);
   };
 
@@ -212,7 +216,7 @@ export default function Home() {
                 </div>
               </div>
               <h3 className="font-semibold text-foreground">{t('project.video')}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{t('project.videoDesc')}</p>
+              <p className="mt-2 text-sm text-muted-foreground">Editor libre hasta 7 minutos con recorte, transiciones y música.</p>
             </div>
           </Card>
 

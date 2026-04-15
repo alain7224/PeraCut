@@ -9,6 +9,8 @@ import { ResponsiveLayout } from "./components/ResponsiveLayout";
 import Home from "./pages/Home";
 import UnifiedEditor from "./pages/UnifiedEditor";
 import TemplatesPage from "./pages/TemplatesPage";
+import TemplateSlotAssignmentPage from "./pages/TemplateSlotAssignmentPage";
+import RecordNowPage from "./pages/RecordNowPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -16,6 +18,8 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/templates"} component={TemplatesPage} />
+      <Route path={"/templates/assign"} component={TemplateSlotAssignmentPage} />
+      <Route path={"/record"} component={RecordNowPage} />
       <Route path={"/editor/:projectId"} component={UnifiedEditor} />
       <Route path={"/editor"} component={UnifiedEditor} />
       <Route path={"/404"} component={NotFound} />
