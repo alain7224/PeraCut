@@ -111,6 +111,7 @@ export default function UnifiedEditor() {
           cool: "hue-rotate(180deg) saturate(120%)",
           warm: "hue-rotate(10deg) saturate(130%)",
           noir: "grayscale(100%) contrast(150%)",
+          blur: "blur(4px)",
           none: "",
         };
         const presetStr = presetMap[selectedFilter] ?? "";
