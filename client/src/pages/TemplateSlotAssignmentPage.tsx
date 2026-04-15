@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useSearch } from 'wouter';
-import { ArrowLeft, Film, ImageIcon, AlertTriangle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Film, ImageIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getTemplateById } from '@/lib/templateRegistry';
 import {
@@ -20,7 +20,6 @@ export default function TemplateSlotAssignmentPage() {
   const [slots, setSlots] = useState<Array<TemplateAssignedSlot | null>>(
     Array.from({ length: template?.scenes.length ?? 0 }, () => null),
   );
-  const [autoFillBanner, setAutoFillBanner] = useState<string | null>(null);
 
   if (!template) {
     return (
@@ -56,11 +55,6 @@ export default function TemplateSlotAssignmentPage() {
   const handleContinue = () => {
     const payload = autoFillTemplateSlots(template, slots);
     saveTemplateAssignment(payload);
-
-    if (payload.autoFilledCount > 0) {
-      setAutoFillBanner(`Se rellenaron ${payload.autoFilledCount} escenas automáticamente.`);
-    }
-
     navigate(`/editor?type=video&template=${template.id}&fromTemplates=1`);
   };
 
@@ -79,13 +73,6 @@ export default function TemplateSlotAssignmentPage() {
       </div>
 
       <div className="max-w-6xl mx-auto p-4 space-y-4">
-        {autoFillBanner && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            {autoFillBanner}
-          </div>
-        )}
-
         <div className="rounded-xl border bg-white p-4">
           <p className="text-sm text-gray-600">
             Cada ranura acepta <strong>foto o video</strong>. Si dejas ranuras vacías, PeraCut las rellenará alternando medios y variando zoom/pan.

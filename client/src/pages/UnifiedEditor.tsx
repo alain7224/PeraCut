@@ -220,7 +220,7 @@ export default function UnifiedEditor() {
   }, [currentImage, brightness, contrast, saturation, rotation, selectedFilter, stickers, editorType]);
 
   const buildVideoScenesFromMedia = useCallback(
-    (items: MediaItem[], template = loadedTemplate): Scene[] => {
+    (items: MediaItem[], template: ReturnType<typeof getTemplateById> | null): Scene[] => {
       const parsedProjectId = parseInt(projectId || "0");
       if (template) {
         const applied = applyTemplateToMedia(template);
@@ -423,7 +423,7 @@ export default function UnifiedEditor() {
     });
 
     setMediaItems((prev) => {
-      if (prev.length <= 1) return prev;
+      if (prev.length <= 1 || prev.length !== scenes.length) return prev;
       const next = [...prev];
       const sourceMedia = sceneToMediaIndex(source);
       const targetMedia = sceneToMediaIndex(target);

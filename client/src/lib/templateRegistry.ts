@@ -1,5 +1,6 @@
 export const TEMPLATE_DURATIONS = [15000, 18000, 25000, 35000, 42000, 50000, 60000] as const;
 export type TemplateDurationMs = (typeof TEMPLATE_DURATIONS)[number];
+type LegacyTemplateDurationMs = 15000 | 25000 | 35000 | 60000;
 
 export const TEMPLATE_ASPECT_RATIOS = ['9:16', '16:9'] as const;
 export type TemplateAspectRatio = (typeof TEMPLATE_ASPECT_RATIOS)[number];
@@ -21,7 +22,7 @@ export interface TemplatePreset {
   styleName: string;
   styleDescription: string;
   aspectRatio: TemplateAspectRatio;
-  durationMs: number;
+  durationMs: TemplateDurationMs;
   scenes: TemplatePresetScene[];
   fillStrategy: 'loop' | 'freeze' | 'stretch';
   sfxTrack?: string;
@@ -102,7 +103,7 @@ interface StyleDef {
   transitionDurationMs: number;
   effects: string[];
   overlay?: TemplatePresetScene['overlay'];
-  sceneCounts: Record<number, number>;
+  sceneCounts: Record<LegacyTemplateDurationMs, number>;
 }
 
 const STYLE_DEFS: StyleDef[] = [
@@ -185,7 +186,7 @@ const STYLE_DEFS: StyleDef[] = [
 function buildPreset(
   style: StyleDef,
   aspectRatio: TemplateAspectRatio,
-  durationMs: number
+  durationMs: LegacyTemplateDurationMs
 ): TemplatePreset {
   const sceneCount = style.sceneCounts[durationMs];
   const scenes = buildScenes(
@@ -211,13 +212,15 @@ function buildPreset(
   };
 }
 
+const LEGACY_DURATIONS: LegacyTemplateDurationMs[] = [15000, 25000, 35000, 60000];
+
 const LEGACY_TEMPLATE_PRESETS: TemplatePreset[] = STYLE_DEFS.flatMap((style) =>
   TEMPLATE_ASPECT_RATIOS.flatMap((ar) =>
-    [15000, 25000, 35000, 60000].map((dur) => buildPreset(style, ar, dur))
+    LEGACY_DURATIONS.map((dur) => buildPreset(style, ar, dur))
   )
 );
 
-const NEW_TEMPLATE_COUNTS: Record<number, number> = {
+const NEW_TEMPLATE_COUNTS: Record<Extract<TemplateDurationMs, 15000 | 18000 | 25000 | 35000 | 42000 | 50000>, number> = {
   15000: 10,
   18000: 10,
   25000: 10,
@@ -236,9 +239,9 @@ const NEW_TEMPLATE_NAMES = [
 
 const DEFAULT_MUSIC_TRACKS = ['/audio/track-a.mp3', '/audio/track-b.mp3', '/audio/track-c.mp3'];
 
-const NEW_TEMPLATE_PRESETS: TemplatePreset[] = Object.entries(NEW_TEMPLATE_COUNTS).flatMap(
+const NEW_TEMPLATE_PRESETS: TemplatePreset[] = (Object.entries(NEW_TEMPLATE_COUNTS) as Array<[`${Extract<TemplateDurationMs, 15000 | 18000 | 25000 | 35000 | 42000 | 50000>}`, number]>).flatMap(
   ([durationKey, count], durationIndex) => {
-    const durationMs = Number(durationKey);
+    const durationMs = Number(durationKey) as Extract<TemplateDurationMs, 15000 | 18000 | 25000 | 35000 | 42000 | 50000>;
     return Array.from({ length: count }, (_, i) => {
       const globalIndex = Object.entries(NEW_TEMPLATE_COUNTS)
         .slice(0, durationIndex)
