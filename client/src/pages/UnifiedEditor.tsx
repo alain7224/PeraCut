@@ -24,8 +24,11 @@ import {
   LayoutTemplate,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { EditorSidebar } from "@/components/EditorSidebar";
+import PresetManager from "@/components/PresetManager";
 import RegistrationModal, { isRegistered } from "@/components/RegistrationModal";
-import MusicPanel from "@/components/MusicPanel";
 import ExportSaveDialog from "@/components/ExportSaveDialog";
 import TemplateSelector from "@/components/TemplateSelector";
 import EditorShellLayout from "@/components/EditorShellLayout";
@@ -44,6 +47,13 @@ import {
   type ClipKeyframeRange,
 } from "@/lib/templateAssignment";
 import type { MediaItem } from "@/components/MediaStrip";
+import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
+import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
+import { MAX_EXPORT_DURATION_MS, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
+import { getTemplateById } from "@/lib/templateRegistry";
+import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
+import VideoEditorLayout from "@/components/VideoEditorLayout";
+
 
 type EditorType = "photo" | "video";
 type RightTab = "media" | "clip" | "project";
@@ -96,7 +106,6 @@ export default function UnifiedEditor() {
   const [isVideoPaused, setIsVideoPaused] = useState(true);
 
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
   const [slowMotionSpeed, setSlowMotionSpeed] = useState(1);
   const [transitionType, setTransitionType] = useState("fade");
   const [transitionDuration, setTransitionDuration] = useState(500);
@@ -127,6 +136,14 @@ export default function UnifiedEditor() {
   const renderBlocked =
     editorType === "video" && (exceedsExportLimit(totalVideoDurationMs) || !hasRenderableVideoMedia);
   const showDurationWarning = editorType === "video" && totalVideoDurationMs >= MAX_EXPORT_DURATION_MS;
+  // Total duration for video scenes
+  const totalVideoDurationMs = useMemo(() => {
+    if (loadedTemplate) return loadedTemplate.durationMs;
+    return scenes.reduce((sum, s) => sum + (s.duration ?? 0), 0);
+  }, [scenes, loadedTemplate]);
+
+  const renderBlocked = editorType === "video" && exceedsExportLimit(totalVideoDurationMs);
+  const showExportDurationWarning = totalVideoDurationMs >= MAX_EXPORT_DURATION_MS;
 
   const projectQuery = trpc.projects.get.useQuery(
     { id: parseInt(projectId || "0") },
@@ -441,6 +458,7 @@ export default function UnifiedEditor() {
       return idx;
     });
   };
+  // ── Sticker helpers ────────────────────────────────────────────────────────
 
   const handleAddSticker = (stickerId: string) => {
     const newSticker: StickerItem = {
@@ -1101,6 +1119,114 @@ export default function UnifiedEditor() {
     );
   }
 
+  /* ── VIDEO EDITOR — full 3-panel layout via VideoEditorLayout ─────────── */
+  if (editorType === "video") {
+    return (
+      <>
+        <VideoEditorLayout
+          items={mediaItems}
+          selectedIndex={selectedMediaIndex}
+          onSelect={(idx) => {
+            setSelectedMediaIndex(idx);
+            setIsVideoPlaying(false);
+          }}
+          onRemove={handleRemoveMediaItem}
+          onAdd={openFilePicker}
+          onReorder={setMediaItems}
+          videoRef={videoRef}
+          isPlaying={isVideoPlaying}
+          onPlayPause={handlePlayPause}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          slowMotionSpeed={slowMotionSpeed}
+          onSlowMotionChange={setSlowMotionSpeed}
+          transitionType={transitionType}
+          onTransitionTypeChange={setTransitionType}
+          transitionDuration={transitionDuration}
+          onTransitionDurationChange={setTransitionDuration}
+          loadedTemplate={loadedTemplate}
+          onSelectTemplate={(templateId) => navigate(`/editor?template=${templateId}`)}
+          renderBlocked={renderBlocked}
+          exportWarning={showExportDurationWarning ? EXPORT_LIMIT_WARNING_ES : null}
+          onSaveVideo={() => requireRegistration(() => setShowRenderDialog(true))}
+          onNavigateHome={() => navigate("/")}
+          saveButton={
+            <ExportSaveDialog
+              editorType={editorType}
+              canvasRef={canvasRef}
+              imageFilters={{ brightness, contrast, saturation, rotation, filter: selectedFilter }}
+              currentImageSrc={currentImage}
+              videoScenes={scenes.map((sc) => ({
+                id: String(sc.id),
+                imageUrl: sc.mediaUrl ?? undefined,
+                duration: sc.duration,
+              }))}
+              projectName={projectName}
+              project={buildProject()}
+              onProjectLoaded={handleProjectLoaded}
+            >
+              <Button
+                size="sm"
+                className="gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <Save className="w-4 h-4" />
+                Guardar
+              </Button>
+            </ExportSaveDialog>
+          }
+          fileInput={
+            <input
+              ref={mediaFileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={handleMediaInputChange}
+              aria-label="Seleccionar archivos de imagen o video"
+            />
+          }
+        />
+
+        {/* Render dialog */}
+        {showRenderDialog && (
+          <Dialog open={showRenderDialog} onOpenChange={setShowRenderDialog}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Renderizar Video</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Tu video se está renderizando. Esto puede tomar algunos minutos.
+                </p>
+                {isLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        <RegistrationModal
+          open={showRegistrationModal}
+          onClose={() => {
+            setShowRegistrationModal(false);
+            setPendingAction(null);
+          }}
+          onSuccess={() => {
+            setShowRegistrationModal(false);
+            if (pendingAction) {
+              pendingAction();
+              setPendingAction(null);
+            }
+          }}
+        />
+      </>
+    );
+  }
+
+  /* ── PHOTO EDITOR — original layout ──────────────────────────────────── */
   return (
     <>
       <EditorShellLayout
@@ -1129,9 +1255,253 @@ export default function UnifiedEditor() {
               onSelectTemplate={(template) => {
                 navigate(`/editor?type=video&template=${template.id}`);
                 setShowTemplateDialog(false);
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="gap-2 text-gray-600 hover:text-gray-900 font-medium"
+              title="Volver al inicio"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Volver</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="gap-1 text-gray-500 hover:text-gray-900 sm:hidden"
+              title="Inicio"
+            >
+              <Home className="w-4 h-4" />
+            </Button>
+            <h1 className="text-xl font-bold ml-1">
+              Editor de Fotos
+            </h1>
+            {mediaItems.length > 0 && (
+              <span className="hidden sm:inline text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
+                {mediaItems.length} elemento{mediaItems.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Agregar archivos button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-sm"
+              onClick={openFilePicker}
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Agregar archivos</span>
+            </Button>
+
+            {
+              <>
+                <Button
+                  onClick={() => requireRegistration(() => setShowShareDialog(true))}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Compartir</span>
+                </Button>
+                <Button
+                  onClick={handleDownload}
+                  size="sm"
+                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Download className="w-4 h-4" />
+                  Guardar
+                  <span className="hidden sm:inline">Descargar</span>
+                </Button>
+              </>
+            }
+
+            {/* Unified Save / Export button */}
+            <ExportSaveDialog
+              editorType={editorType}
+              canvasRef={canvasRef}
+              imageFilters={{ brightness, contrast, saturation, rotation, filter: selectedFilter }}
+              currentImageSrc={currentImage}
+              videoScenes={scenes.map((sc) => ({
+                id: String(sc.id),
+                imageUrl: sc.mediaUrl ?? undefined,
+                duration: sc.duration,
+              }))}
+              projectName={projectName}
+              project={buildProject()}
+              onProjectLoaded={handleProjectLoaded}
+            >
+              <Button
+                onClick={() => requireRegistration(() => setShowRenderDialog(true))}
+                size="sm"
+                disabled={renderBlocked}
+                className="gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                Guardar
+              </Button>
+            </ExportSaveDialog>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Canvas/Editor Area */}
+          <div className="lg:col-span-3 space-y-4">
+            <MediaStrip
+              items={mediaItems}
+              selectedIndex={selectedMediaIndex}
+              onSelect={(idx) => {
+                setSelectedMediaIndex(idx);
+                setIsVideoPlaying(false);
               }}
               onClose={() => setShowTemplateDialog(false)}
             />
+
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              {!currentImage ? (
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={openFilePicker}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <Image className="w-12 h-12 text-gray-400" />
+                    <p className="text-lg font-medium text-gray-700">
+                      Haz clic para cargar imágenes
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Formatos soportados: JPG, PNG (máx 4000x4000px)
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative flex justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    className="max-w-full max-h-96 rounded-lg shadow-md"
+                  />
+                  {/* Sticker overlays (visual only — baked on export) */}
+                  {stickers.map((s) => {
+                    const def = STICKERS.find((st) => st.id === s.stickerId);
+                    if (!def) return null;
+                    return (
+                      <div
+                        key={s.id}
+                        className="absolute cursor-move select-none"
+                        style={{
+                          left: `${s.x}%`,
+                          top: `${s.y}%`,
+                          transform: `translate(-50%, -50%) rotate(${s.rotation}deg) scale(${s.scale})`,
+                        }}
+                      >
+                        <img
+                          src={stickerToDataUrl(def)}
+                          alt={def.name}
+                          className="w-16 h-16 pointer-events-none"
+                        />
+                        <button
+                          onClick={() => handleRemoveSticker(s.id)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          title="Eliminar sticker"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-4">
+              {currentImage && (
+                <>
+                  <EditorSidebar
+                    brightness={brightness}
+                    contrast={contrast}
+                    saturation={saturation}
+                    rotation={rotation}
+                    filter={selectedFilter}
+                    onBrightnessChange={setBrightness}
+                    onContrastChange={setContrast}
+                    onSaturationChange={setSaturation}
+                    onRotationChange={setRotation}
+                    onFilterChange={setSelectedFilter}
+                    onGenerateImage={() => {}}
+                    onAddText={() => {}}
+                  />
+
+                  <PresetManager
+                    currentSettings={{
+                      brightness,
+                      contrast,
+                      saturation,
+                      rotation,
+                      filter: selectedFilter,
+                    }}
+                    onApplyPreset={(settings: any) => {
+                      setBrightness(settings.brightness || 100);
+                      setContrast(settings.contrast || 100);
+                      setSaturation(settings.saturation || 100);
+                      setRotation(settings.rotation || 0);
+                      setSelectedFilter(settings.filter || "none");
+                    }}
+                  />
+
+                  {/* Sticker panel */}
+                  <div className="bg-white rounded-xl shadow-lg p-4">
+                    <button
+                      onClick={() => setShowStickerPanel((v) => !v)}
+                      className="w-full flex items-center justify-between font-semibold text-sm"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-primary" />
+                        Stickers
+                        {stickers.length > 0 && (
+                          <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs px-1.5">
+                            {stickers.length}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {showStickerPanel ? "▲" : "▼"}
+                      </span>
+                    </button>
+
+                    {showStickerPanel && (
+                      <div className="mt-3 grid grid-cols-4 gap-2">
+                        {STICKERS.map((st) => (
+                          <button
+                            key={st.id}
+                            onClick={() => handleAddSticker(st.id)}
+                            title={st.name}
+                            className="aspect-square rounded-lg border border-border hover:border-primary hover:bg-primary/5 flex items-center justify-center transition-colors"
+                          >
+                            <img
+                              src={stickerToDataUrl(st)}
+                              alt={st.name}
+                              className="w-8 h-8"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
