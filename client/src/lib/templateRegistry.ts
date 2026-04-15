@@ -1,4 +1,4 @@
-export const TEMPLATE_DURATIONS = [15000, 25000, 35000, 60000] as const;
+export const TEMPLATE_DURATIONS = [15000, 18000, 25000, 35000, 42000, 50000, 60000] as const;
 export type TemplateDurationMs = (typeof TEMPLATE_DURATIONS)[number];
 
 export const TEMPLATE_ASPECT_RATIOS = ['9:16', '16:9'] as const;
@@ -21,14 +21,14 @@ export interface TemplatePreset {
   styleName: string;
   styleDescription: string;
   aspectRatio: TemplateAspectRatio;
-  durationMs: TemplateDurationMs;
+  durationMs: number;
   scenes: TemplatePresetScene[];
   fillStrategy: 'loop' | 'freeze' | 'stretch';
   sfxTrack?: string;
+  defaultMusicTrack?: string;
   tags: string[];
+  isNew?: boolean;
 }
-
-// ─── scene builders ──────────────────────────────────────────────────────────
 
 function buildScenes(
   durations: number[],
@@ -47,14 +47,49 @@ function buildScenes(
   }));
 }
 
-/** Distribute totalMs evenly into n scenes. The last scene absorbs any rounding remainder. */
 function evenSplit(totalMs: number, n: number): number[] {
   const base = Math.floor(totalMs / n);
   const rem = totalMs - base * n;
   return Array.from({ length: n }, (_, i) => (i === n - 1 ? base + rem : base));
 }
 
-// ─── style definitions ───────────────────────────────────────────────────────
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function buildFastSceneDurations(totalMs: number, sceneCount: number, seed: number): number[] {
+  const min = 300;
+  const max = 3000;
+  const durations = Array.from({ length: sceneCount }, () => min);
+  let remaining = totalMs - sceneCount * min;
+
+  if (remaining < 0) {
+    return evenSplit(totalMs, sceneCount);
+  }
+
+  for (let i = 0; i < sceneCount; i++) {
+    if (remaining <= 0) break;
+    const randomFactor = 0.2 + seededRandom(seed + i * 7) * 0.8;
+    const room = max - durations[i];
+    const add = Math.min(room, Math.round((remaining / (sceneCount - i)) * randomFactor));
+    durations[i] += Math.max(0, add);
+    remaining -= Math.max(0, add);
+  }
+
+  let idx = 0;
+  while (remaining > 0) {
+    const room = max - durations[idx % sceneCount];
+    if (room > 0) {
+      const add = Math.min(room, remaining, 120);
+      durations[idx % sceneCount] += add;
+      remaining -= add;
+    }
+    idx += 1;
+  }
+
+  return durations;
+}
 
 interface StyleDef {
   styleId: StyleId;
@@ -67,7 +102,7 @@ interface StyleDef {
   transitionDurationMs: number;
   effects: string[];
   overlay?: TemplatePresetScene['overlay'];
-  sceneCounts: Record<TemplateDurationMs, number>;
+  sceneCounts: Record<number, number>;
 }
 
 const STYLE_DEFS: StyleDef[] = [
@@ -147,12 +182,10 @@ const STYLE_DEFS: StyleDef[] = [
   },
 ];
 
-// ─── preset factory ───────────────────────────────────────────────────────────
-
 function buildPreset(
   style: StyleDef,
   aspectRatio: TemplateAspectRatio,
-  durationMs: TemplateDurationMs
+  durationMs: number
 ): TemplatePreset {
   const sceneCount = style.sceneCounts[durationMs];
   const scenes = buildScenes(
@@ -173,19 +206,73 @@ function buildPreset(
     scenes,
     fillStrategy: style.fillStrategy,
     sfxTrack: style.sfxTrack,
+    defaultMusicTrack: '/audio/default-template.mp3',
     tags: [...style.tags, `${durationMs / 1000}s`, aspectRatio],
   };
 }
 
-// ─── ALL_TEMPLATE_PRESETS (6 styles × 2 ratios × 4 durations = 48) ───────────
-
-export const ALL_TEMPLATE_PRESETS: TemplatePreset[] = STYLE_DEFS.flatMap((style) =>
+const LEGACY_TEMPLATE_PRESETS: TemplatePreset[] = STYLE_DEFS.flatMap((style) =>
   TEMPLATE_ASPECT_RATIOS.flatMap((ar) =>
-    TEMPLATE_DURATIONS.map((dur) => buildPreset(style, ar, dur))
+    [15000, 25000, 35000, 60000].map((dur) => buildPreset(style, ar, dur))
   )
 );
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+const NEW_TEMPLATE_COUNTS: Record<number, number> = {
+  15000: 10,
+  18000: 10,
+  25000: 10,
+  35000: 8,
+  42000: 7,
+  50000: 5,
+};
+
+const NEW_TEMPLATE_NAMES = [
+  'Neon Boom','Street Zoom','Retro Flash','Beat Pulse','Vibe Shift','Urban Drop','Quick Spark','Night Drive','Glow Rush','Skyline Pop',
+  'Pulse Drift','Color Dash','Electric Cut','Dream Motion','Flash Orbit','Echo Wave','Hyper Clip','Prisma Beat','Rapid Mood','Frame Storm',
+  'City Lights','Bloom Jump','Tape Remix','Meta Flow','Glass Beat','Turbo Swipe','Wave Focus','Lunar Glide','Snap Motion','Fresh Vibes',
+  'Aura Sprint','Silk Cuts','Solar Hype','Violet Groove','Comet Jump','Luma Beat','Flash Story','Tempo Ride','Nova Speed','Trend Scene',
+  'Boom Sequence','Sharp Vibe','Mirror Pulse','Bold Drift','Prime Motion','Beat Cascade','Star Cut','Neon Drift','Vision Pop','Dynamic Reel',
+];
+
+const DEFAULT_MUSIC_TRACKS = ['/audio/track-a.mp3', '/audio/track-b.mp3', '/audio/track-c.mp3'];
+
+const NEW_TEMPLATE_PRESETS: TemplatePreset[] = Object.entries(NEW_TEMPLATE_COUNTS).flatMap(
+  ([durationKey, count], durationIndex) => {
+    const durationMs = Number(durationKey);
+    return Array.from({ length: count }, (_, i) => {
+      const globalIndex = Object.entries(NEW_TEMPLATE_COUNTS)
+        .slice(0, durationIndex)
+        .reduce((sum, [, c]) => sum + c, 0) + i;
+      const style = STYLE_DEFS[globalIndex % STYLE_DEFS.length];
+      const aspectRatio: TemplateAspectRatio = globalIndex % 2 === 0 ? '9:16' : '16:9';
+      const sceneCount = Math.min(40, Math.max(10, Math.round(durationMs / 900) + (globalIndex % 6)));
+      const sceneDurations = buildFastSceneDurations(durationMs, sceneCount, globalIndex + 1);
+
+      return {
+        id: `peracut-new-${durationMs}-${globalIndex + 1}`,
+        styleId: style.styleId,
+        styleName: NEW_TEMPLATE_NAMES[globalIndex],
+        styleDescription: `Plantilla rápida PeraCut de ${durationMs / 1000}s con cortes dinámicos.`,
+        aspectRatio,
+        durationMs,
+        scenes: buildScenes(
+          sceneDurations,
+          style.transitionType,
+          Math.max(60, Math.min(300, style.transitionDurationMs)),
+          style.effects,
+          style.overlay,
+        ),
+        fillStrategy: 'loop',
+        sfxTrack: style.sfxTrack,
+        defaultMusicTrack: DEFAULT_MUSIC_TRACKS[globalIndex % DEFAULT_MUSIC_TRACKS.length],
+        tags: [...style.tags, `${durationMs / 1000}s`, aspectRatio, 'new', 'peracut'],
+        isNew: true,
+      };
+    });
+  }
+);
+
+export const ALL_TEMPLATE_PRESETS: TemplatePreset[] = [...LEGACY_TEMPLATE_PRESETS, ...NEW_TEMPLATE_PRESETS];
 
 export function getTemplatesByAspectRatio(ar: TemplateAspectRatio): TemplatePreset[] {
   return ALL_TEMPLATE_PRESETS.filter((t) => t.aspectRatio === ar);
@@ -199,9 +286,6 @@ export function getTemplateById(id: string): TemplatePreset | undefined {
   return ALL_TEMPLATE_PRESETS.find((t) => t.id === id);
 }
 
-/**
- * Returns a cloned template preserving its fixed scene timeline.
- */
 export function applyTemplateToMedia(template: TemplatePreset): TemplatePreset {
   return {
     ...template,

@@ -17,12 +17,7 @@ interface TemplateSelectorProps {
   onClose: () => void;
 }
 
-const DURATION_LABELS: Record<number, string> = {
-  15000: '15s',
-  25000: '25s',
-  35000: '35s',
-  60000: '60s',
-};
+const getDurationLabel = (durationMs: number) => `${Math.round(durationMs / 1000)}s`;
 
 const STYLE_COLORS: Record<string, string> = {
   cutout: 'from-gray-800 to-gray-900',
@@ -105,8 +100,8 @@ export default function TemplateSelector({ onSelectTemplate, onClose }: Template
       >
         <TabsList className="mb-4">
           {TEMPLATE_DURATIONS.map((d) => (
-            <TabsTrigger key={d} value={String(d)}>
-              {DURATION_LABELS[d]}
+              <TabsTrigger key={d} value={String(d)}>
+              {getDurationLabel(d)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -141,7 +136,7 @@ export default function TemplateSelector({ onSelectTemplate, onClose }: Template
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold text-gray-900">{template.styleName}</span>
                         <Badge variant="secondary" className="text-[10px]">
-                          {DURATION_LABELS[template.durationMs]}
+                          {getDurationLabel(template.durationMs)}
                         </Badge>
                       </div>
                       <p className="text-[10px] text-gray-500 line-clamp-2">{template.styleDescription}</p>

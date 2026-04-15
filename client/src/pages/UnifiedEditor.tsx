@@ -37,6 +37,12 @@ import {
   MAX_EXPORT_DURATION_MS,
 } from "@/lib/durationValidation";
 import { getTemplateById, applyTemplateToMedia } from "@/lib/templateRegistry";
+import {
+  clearTemplateAssignment,
+  createDefaultKeyframe,
+  readTemplateAssignment,
+  type ClipKeyframeRange,
+} from "@/lib/templateAssignment";
 import type { MediaItem } from "@/components/MediaStrip";
 
 type EditorType = "photo" | "video";
@@ -65,6 +71,7 @@ export default function UnifiedEditor() {
   const searchParams = new URLSearchParams(searchString);
   const editorTypeParam = searchParams.get("type") as EditorType | null;
   const templateParam = searchParams.get("template");
+  const fromTemplates = searchParams.get("fromTemplates") === "1";
 
   const [editorType, setEditorType] = useState<EditorType>(editorTypeParam ?? "photo");
   const [showTypeSelector, setShowTypeSelector] = useState(!projectId && !editorTypeParam && !templateParam);
@@ -100,6 +107,8 @@ export default function UnifiedEditor() {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [rightTab, setRightTab] = useState<RightTab>("media");
+  const [clipKeyframes, setClipKeyframes] = useState<Record<number, ClipKeyframeRange>>({});
+  const [autoFillNotice, setAutoFillNotice] = useState<string | null>(null);
 
   const loadedTemplate = useMemo(() => {
     if (!templateParam) return null;
@@ -248,6 +257,45 @@ export default function UnifiedEditor() {
     setSelectedSceneIndex((idx) => Math.min(idx, Math.max(0, nextScenes.length - 1)));
   }, [editorType, mediaItems, loadedTemplate, buildVideoScenesFromMedia]);
 
+  useEffect(() => {
+    if (!fromTemplates || !loadedTemplate || editorType !== "video") return;
+    const assignment = readTemplateAssignment(loadedTemplate.id);
+    if (!assignment) return;
+
+    const assignedItems: MediaItem[] = assignment.slots.map((slot, idx) => ({
+      id: `slot-${idx}-${uid()}`,
+      type: slot.mediaType,
+      fileName: slot.fileName,
+      objectUrl: slot.objectUrl,
+    }));
+
+    setMediaItems(assignedItems);
+    setScenes(
+      loadedTemplate.scenes.map((scene, idx) => ({
+        id: idx + 1,
+        projectId: parseInt(projectId || "0"),
+        order: idx,
+        duration: scene.durationMs,
+        mediaUrl: assignment.slots[idx]?.objectUrl ?? null,
+        mediaType: assignment.slots[idx]?.mediaType ?? "image",
+      })),
+    );
+
+    const keyframes: Record<number, ClipKeyframeRange> = {};
+    assignment.slots.forEach((slot, idx) => {
+      keyframes[idx] = slot.keyframes ?? createDefaultKeyframe(idx);
+    });
+    setClipKeyframes(keyframes);
+    setSelectedMediaIndex(0);
+    setSelectedSceneIndex(0);
+
+    if (assignment.autoFilledCount > 0) {
+      setAutoFillNotice(`Se rellenaron ${assignment.autoFilledCount} escenas automáticamente.`);
+    }
+
+    clearTemplateAssignment();
+  }, [fromTemplates, loadedTemplate, editorType, projectId]);
+
   const handleMediaFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
     try {
@@ -359,6 +407,39 @@ export default function UnifiedEditor() {
     setSelectedMediaIndex((idx) => (idx < mediaItems.length - 1 ? idx + 1 : 0));
     setSelectedSceneIndex((idx) => (idx < scenes.length - 1 ? idx + 1 : 0));
     setIsVideoPaused(true);
+  };
+
+  const handleMoveSelectedClip = (direction: -1 | 1) => {
+    if (scenes.length <= 1) return;
+    const source = selectedSceneIndex;
+    const target = source + direction;
+    if (target < 0 || target >= scenes.length) return;
+
+    setScenes((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(source, 1);
+      next.splice(target, 0, moved);
+      return next.map((scene, idx) => ({ ...scene, order: idx }));
+    });
+
+    setMediaItems((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = [...prev];
+      const sourceMedia = sceneToMediaIndex(source);
+      const targetMedia = sceneToMediaIndex(target);
+      if (sourceMedia === targetMedia) return prev;
+      const [moved] = next.splice(sourceMedia, 1);
+      next.splice(targetMedia, 0, moved);
+      return next;
+    });
+
+    setSelectedSceneIndex(target);
+    setSelectedMediaIndex((idx) => {
+      if (idx === source) return target;
+      if (direction === -1 && idx >= target && idx < source) return idx + 1;
+      if (direction === 1 && idx > source && idx <= target) return idx - 1;
+      return idx;
+    });
   };
 
   const handleAddSticker = (stickerId: string) => {
@@ -496,6 +577,26 @@ export default function UnifiedEditor() {
   };
 
   const compactButtonClass = "w-full h-8 justify-start text-xs px-2";
+  const selectedClipKeyframe = clipKeyframes[selectedSceneIndex] ?? createDefaultKeyframe(selectedSceneIndex);
+  const updateClipKeyframe = (
+    point: "start" | "end",
+    field: "x" | "y" | "scale" | "rotation",
+    value: number,
+  ) => {
+    setClipKeyframes((prev) => {
+      const current = prev[selectedSceneIndex] ?? createDefaultKeyframe(selectedSceneIndex);
+      return {
+        ...prev,
+        [selectedSceneIndex]: {
+          ...current,
+          [point]: {
+            ...current[point],
+            [field]: value,
+          },
+        },
+      };
+    });
+  };
   const sceneToMediaIndex = useCallback(
     (sceneIdx: number) => (mediaItems.length === 0 ? 0 : sceneIdx % mediaItems.length),
     [mediaItems.length],
@@ -520,12 +621,27 @@ export default function UnifiedEditor() {
     />
   );
 
-  const warningBannerNode = showDurationWarning ? (
-    <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
-      <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
-      {EXPORT_LIMIT_WARNING_ES}
+  const warningBannerNode = showDurationWarning || autoFillNotice ? (
+    <div className="space-y-1">
+      {showDurationWarning && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+          {EXPORT_LIMIT_WARNING_ES}
+        </div>
+      )}
+      {autoFillNotice && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center gap-2 text-blue-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-blue-500" />
+          {autoFillNotice}
+        </div>
+      )}
     </div>
   ) : undefined;
+  const activeClipTransform = selectedClipKeyframe.start;
+  const clipTransformStyle = {
+    transform: `translate(${activeClipTransform.x}px, ${activeClipTransform.y}px) scale(${activeClipTransform.scale}) rotate(${activeClipTransform.rotation}deg)`,
+    transition: "transform 200ms ease-out",
+  } as const;
 
   const leftSidebarNode = (
     <div className="p-2 space-y-2">
@@ -592,7 +708,7 @@ export default function UnifiedEditor() {
       ) : editorType === "photo" ? (
         <div className={`relative w-full max-w-3xl mx-auto ${aspectToClass[previewAspectRatio]}`}>
           <div className="absolute inset-0 bg-black rounded-xl overflow-hidden flex items-center justify-center">
-            <canvas ref={canvasRef} className="max-w-full max-h-full object-contain" />
+            <canvas ref={canvasRef} className="max-w-full max-h-full object-contain" style={clipTransformStyle} />
             {stickers.map((s) => {
               const def = STICKERS.find((st) => st.id === s.stickerId);
               if (!def) return null;
@@ -624,6 +740,7 @@ export default function UnifiedEditor() {
           ref={videoRef}
           src={selectedMedia.objectUrl}
           className="w-full max-h-[68vh] object-contain rounded-xl bg-black"
+          style={clipTransformStyle}
           controls
         />
       ) : (
@@ -631,6 +748,7 @@ export default function UnifiedEditor() {
           src={selectedMedia.objectUrl}
           alt={selectedMedia.fileName}
           className="w-full max-h-[68vh] object-contain rounded-xl bg-black"
+          style={clipTransformStyle}
         />
       )}
     </div>
@@ -744,7 +862,7 @@ export default function UnifiedEditor() {
       )}
 
       <ExportSaveDialog {...saveDialogProps}>
-        <Button size="sm" className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700`} onClick={exportDialogButtonGuard}>
+        <Button size="sm" className={`${compactButtonClass} btn-boom-b1 bg-purple-600 hover:bg-purple-700`} onClick={exportDialogButtonGuard}>
           <Save className="w-3.5 h-3.5 mr-1" /> Guardar
         </Button>
       </ExportSaveDialog>
@@ -756,14 +874,14 @@ export default function UnifiedEditor() {
       </ExportSaveDialog>
 
       {editorType === "photo" ? (
-        <Button size="sm" className={`${compactButtonClass} bg-blue-600 hover:bg-blue-700`} onClick={handleDownloadPhoto}>
+        <Button size="sm" className={`${compactButtonClass} btn-boom-b1 bg-blue-600 hover:bg-blue-700`} onClick={handleDownloadPhoto}>
           <Download className="w-3.5 h-3.5 mr-1" /> Descargar
         </Button>
       ) : (
         <ExportSaveDialog {...saveDialogProps}>
           <Button
             size="sm"
-            className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700 disabled:opacity-50`}
+            className={`${compactButtonClass} btn-boom-b1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50`}
             disabled={renderBlocked}
             onClick={exportDialogButtonGuard}
           >
@@ -823,7 +941,33 @@ export default function UnifiedEditor() {
             <p className="text-[11px] text-gray-600 mb-1">Duración transición {transitionDuration}ms</p>
             <Slider value={[transitionDuration]} onValueChange={(v) => setTransitionDuration(v[0])} min={100} max={2000} step={100} />
           </div>
-          <MusicPanel />
+          <div className="rounded-md border border-purple-200 bg-purple-50 p-2 space-y-2">
+            <p className="text-[11px] font-semibold text-purple-900">Reencuadre + keyframes (Inicio / Fin)</p>
+            <div>
+              <p className="text-[10px] text-purple-800">Inicio X {selectedClipKeyframe.start.x}px</p>
+              <Slider value={[selectedClipKeyframe.start.x]} onValueChange={(v) => updateClipKeyframe("start", "x", v[0])} min={-120} max={120} step={1} />
+            </div>
+            <div>
+              <p className="text-[10px] text-purple-800">Inicio Y {selectedClipKeyframe.start.y}px</p>
+              <Slider value={[selectedClipKeyframe.start.y]} onValueChange={(v) => updateClipKeyframe("start", "y", v[0])} min={-120} max={120} step={1} />
+            </div>
+            <div>
+              <p className="text-[10px] text-purple-800">Inicio Zoom {selectedClipKeyframe.start.scale.toFixed(2)}x</p>
+              <Slider value={[selectedClipKeyframe.start.scale]} onValueChange={(v) => updateClipKeyframe("start", "scale", v[0])} min={0.5} max={2} step={0.01} />
+            </div>
+            <div>
+              <p className="text-[10px] text-purple-800">Fin Zoom {selectedClipKeyframe.end.scale.toFixed(2)}x</p>
+              <Slider value={[selectedClipKeyframe.end.scale]} onValueChange={(v) => updateClipKeyframe("end", "scale", v[0])} min={0.5} max={2} step={0.01} />
+            </div>
+            <div>
+              <p className="text-[10px] text-purple-800">Fin Rotación {selectedClipKeyframe.end.rotation.toFixed(0)}°</p>
+              <Slider value={[selectedClipKeyframe.end.rotation]} onValueChange={(v) => updateClipKeyframe("end", "rotation", v[0])} min={-45} max={45} step={1} />
+            </div>
+          </div>
+          <MusicPanel
+            defaultMusicTrack={loadedTemplate?.defaultMusicTrack}
+            templateDurationMs={loadedTemplate?.durationMs}
+          />
         </div>
       )}
 
@@ -869,6 +1013,12 @@ export default function UnifiedEditor() {
         </Button>
         <Button variant="outline" size="sm" onClick={handleNext} disabled={mediaItems.length <= 1}>
           <SkipForward className="w-4 h-4" />
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => handleMoveSelectedClip(-1)} disabled={selectedSceneIndex <= 0}>
+          Mover ←
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => handleMoveSelectedClip(1)} disabled={selectedSceneIndex >= Math.max(0, scenes.length - 1)}>
+          Mover →
         </Button>
       </div>
       <span className="text-xs text-gray-500">

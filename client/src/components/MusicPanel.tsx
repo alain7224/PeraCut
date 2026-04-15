@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -12,6 +12,8 @@ interface MusicPanelProps {
   onAudioFileChange?: (file: File | null) => void;
   onMusicVolumeChange?: (volume: number) => void;
   onOriginalVolumeChange?: (volume: number) => void;
+  defaultMusicTrack?: string;
+  templateDurationMs?: number;
 }
 
 const FREE_MUSIC_SOURCES = [
@@ -45,13 +47,27 @@ export default function MusicPanel({
   onAudioFileChange,
   onMusicVolumeChange,
   onOriginalVolumeChange,
+  defaultMusicTrack,
+  templateDurationMs,
 }: MusicPanelProps) {
   const [audioFileName, setAudioFileName] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(80);
   const [originalVolume, setOriginalVolume] = useState(100);
   const [muteOriginal, setMuteOriginal] = useState(false);
   const [playingSfx, setPlayingSfx] = useState<SfxType | null>(null);
+  const [tapTimes, setTapTimes] = useState<number[]>([]);
+  const [manualBpm, setManualBpm] = useState(120);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const beatMarkers = useMemo(() => {
+    const duration = templateDurationMs ?? 15000;
+    const beatMs = Math.max(250, Math.round((60_000 / Math.max(40, manualBpm))));
+    const markers: number[] = [];
+    for (let t = 0; t < duration; t += beatMs) {
+      markers.push(t);
+    }
+    return markers;
+  }, [manualBpm, templateDurationMs]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -80,12 +96,31 @@ export default function MusicPanel({
     }
   };
 
+  const handleTapTempo = () => {
+    const now = Date.now();
+    setTapTimes((prev) => {
+      const next = [...prev.slice(-5), now];
+      if (next.length >= 2) {
+        const intervals = next.slice(1).map((t, idx) => t - next[idx]);
+        const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        const bpm = Math.round(60_000 / avg);
+        if (bpm >= 40 && bpm <= 240) {
+          setManualBpm(bpm);
+        }
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-4">
       <div className="flex items-center gap-2 mb-3">
         <Music className="h-4 w-4 text-purple-600" />
         <h3 className="font-bold text-gray-900 text-sm">Música y Audio</h3>
       </div>
+      {defaultMusicTrack && (
+        <p className="text-[11px] text-purple-700 mb-2">Música por defecto: {defaultMusicTrack.split('/').pop()}</p>
+      )}
 
       <Tabs defaultValue="upload">
         <TabsList className="w-full mb-3">
@@ -204,6 +239,27 @@ export default function MusicPanel({
           ))}
         </TabsContent>
       </Tabs>
+
+      <div className="mt-3 rounded-lg border border-purple-200 bg-purple-50 p-2">
+        <p className="text-[11px] font-semibold text-purple-900 mb-1">Beat Sync local</p>
+        <div className="flex gap-2 items-center mb-2">
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleTapTempo}>
+            Tap tempo
+          </Button>
+          <span className="text-xs text-purple-700">BPM: {manualBpm}</span>
+        </div>
+        <div className="h-8 rounded bg-white border border-purple-100 px-1 flex items-end gap-[2px] overflow-hidden">
+          {beatMarkers.slice(0, 60).map((marker) => (
+            <span
+              key={marker}
+              className="w-[2px] bg-purple-500/80 rounded-t"
+              style={{ height: marker % 2000 === 0 ? '100%' : '55%' }}
+              title={`${(marker / 1000).toFixed(2)}s`}
+            />
+          ))}
+        </div>
+        <p className="text-[10px] text-purple-700 mt-1">Boom/zoom/shake se sincronizan en beats sin cambiar la duración total.</p>
+      </div>
     </div>
   );
 }
