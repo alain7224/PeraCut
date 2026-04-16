@@ -9,6 +9,7 @@ import {
   Loader2,
   Download,
   Share2,
+  ArrowLeft,
   Home,
   Image,
   Video,
@@ -23,8 +24,6 @@ import {
   Copy,
   LayoutTemplate,
 } from "lucide-react";
-import { toast } from "sonner";
-import { Loader2, Download, Share2, ArrowLeft, Home, Image, Video, Save, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { EditorSidebar } from "@/components/EditorSidebar";
 import PresetManager from "@/components/PresetManager";
@@ -46,11 +45,6 @@ import {
   readTemplateAssignment,
   type ClipKeyframeRange,
 } from "@/lib/templateAssignment";
-import type { MediaItem } from "@/components/MediaStrip";
-import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
-import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
-import { MAX_EXPORT_DURATION_MS, exceedsExportLimit, EXPORT_LIMIT_WARNING_ES } from "@/lib/durationValidation";
-import { getTemplateById } from "@/lib/templateRegistry";
 import MediaStrip, { type MediaItem } from "@/components/MediaStrip";
 import VideoEditorLayout from "@/components/VideoEditorLayout";
 
