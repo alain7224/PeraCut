@@ -60,7 +60,7 @@ export default function EditorShellLayout({
       {warningBanner}
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_280px] gap-3 p-3 overflow-hidden">
-        <aside aria-label="Media clips" className="bg-white rounded-xl border border-gray-200 overflow-y-auto min-h-[220px]">
+        <aside className="bg-white rounded-xl border border-gray-200 overflow-y-auto min-h-[220px]">
           {leftSidebar}
         </aside>
 
@@ -68,7 +68,7 @@ export default function EditorShellLayout({
           {centerContent}
         </main>
 
-        <aside aria-label="Editing controls" className="bg-white rounded-xl border border-gray-200 overflow-y-auto p-3">
+        <aside className="bg-white rounded-xl border border-gray-200 overflow-y-auto p-3">
           {rightSidebar}
         </aside>
       </div>
