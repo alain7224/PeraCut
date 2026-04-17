@@ -8,17 +8,13 @@
 
 ## ✨ Características
 
-<<<<<<< copilot/add-template-system-presets
-- 🎬 **Edición de Videos** - Crea videos con timeline libre
-- 📸 **Edición de Fotos** - Filtros y efectos profesionales
-=======
-- 🎬 **Edición de Videos** - Crea videos de 15 segundos con transiciones (fade, slide, zoom)
-- 📸 **Edición de Fotos** - Filtros, ajustes y efectos profesionales
-- 📤 **Exportar PNG/JPEG** - Descarga tu foto con todos los filtros baked-in en alta calidad
+- 🎛️ **UI estilo CapCut 2026** - Layout fijo a viewport con paneles de vidrio esmerilado, skins Light/Graphite/Midnight y preview fullscreen
+- 🎬 **Edición de Video** - Timeline cronológico con pista de media y audio, transiciones con botón + translúcido y clips sin huecos
+- 📸 **Edición de Fotos** - Filtros, ajustes, presets rápidos y stickers
+- 📤 **Exportar PNG/JPEG** - Descarga tu foto con los filtros baked-in en alta calidad
 - 🎞 **Renderizar MP4** - Exporta el video final usando FFmpeg WASM (sin servidor externo)
 - 💾 **Guardar/Cargar Proyecto** - Descarga el estado editable como `.peracut.json` y recupéralo después
 - 🎭 **Stickers SVG** - Superpón emojis y decoraciones sobre tu foto
->>>>>>> main
 - 🎥 **Grabación Directa** - Graba desde tu cámara web
 - 🎨 **48 Plantillas** - 6 estilos × 2 formatos × 4 duraciones (15s/25s/35s/60s)
 - 🎵 **Panel de Audio** - Sube tu música (mp3/m4a/wav) o usa links a librerías gratuitas
@@ -170,4 +166,3 @@ Los archivos WAV se generan con `node scripts/generateSfx.mjs`:
 
 ### Límite de exportación
 El límite es de **7 minutos**. Se muestra una advertencia en el editor cuando el timeline supera 7:00, y se bloquea el botón de exportación. La lógica está en `client/src/lib/durationValidation.ts`.
-
