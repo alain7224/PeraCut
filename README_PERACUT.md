@@ -8,17 +8,12 @@
 
 ## ✨ Características
 
-<<<<<<< copilot/add-template-system-presets
-- 🎬 **Edición de Videos** - Crea videos con timeline libre
-- 📸 **Edición de Fotos** - Filtros y efectos profesionales
-=======
-- 🎬 **Edición de Videos** - Crea videos de 15 segundos con transiciones (fade, slide, zoom)
+- 🎬 **Edición de Videos** - Crea videos con timeline libre, transiciones (fade, slide, zoom) y plantillas
 - 📸 **Edición de Fotos** - Filtros, ajustes y efectos profesionales
 - 📤 **Exportar PNG/JPEG** - Descarga tu foto con todos los filtros baked-in en alta calidad
 - 🎞 **Renderizar MP4** - Exporta el video final usando FFmpeg WASM (sin servidor externo)
 - 💾 **Guardar/Cargar Proyecto** - Descarga el estado editable como `.peracut.json` y recupéralo después
 - 🎭 **Stickers SVG** - Superpón emojis y decoraciones sobre tu foto
->>>>>>> main
 - 🎥 **Grabación Directa** - Graba desde tu cámara web
 - 🎨 **48 Plantillas** - 6 estilos × 2 formatos × 4 duraciones (15s/25s/35s/60s)
 - 🎵 **Panel de Audio** - Sube tu música (mp3/m4a/wav) o usa links a librerías gratuitas
