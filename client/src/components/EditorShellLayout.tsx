@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { ArrowLeft, Pause, Play, Maximize2, Minimize2, Sun, Layers, Moon } from "lucide-react";
+import { useState, type ReactNode } from "react";import { ArrowLeft, Pause, Play, Maximize2, Minimize2, Sun, Layers, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type EditorSkin = "light" | "graphite" | "midnight";
@@ -30,10 +29,14 @@ const SKIN_LABELS: Record<EditorSkin, string> = {
   midnight: "Medianoche",
 };
 
+const SKIN_ICONS: Record<EditorSkin, ReactNode> = {
+  light: <Sun className="w-3.5 h-3.5" />,
+  graphite: <Layers className="w-3.5 h-3.5" />,
+  midnight: <Moon className="w-3.5 h-3.5" />,
+};
+
 function SkinIcon({ skin }: { skin: EditorSkin }) {
-  if (skin === "graphite") return <Layers className="w-3.5 h-3.5" />;
-  if (skin === "midnight") return <Moon className="w-3.5 h-3.5" />;
-  return <Sun className="w-3.5 h-3.5" />;
+  return SKIN_ICONS[skin];
 }
 
 export default function EditorShellLayout({

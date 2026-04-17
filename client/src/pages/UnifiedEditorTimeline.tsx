@@ -104,7 +104,7 @@ export function UnifiedEditorTimelineMediaTrack({
         const isLast = index === count - 1;
 
         return (
-          <div key={scene?.id ?? item?.id ?? index} className="flex items-stretch">
+          <div key={useScenes ? `scene-${scene?.id ?? index}` : `item-${item?.id ?? index}`} className="flex items-stretch">
             {/* ── Clip cell ── */}
             <button
               onClick={() => {
@@ -194,7 +194,12 @@ export function UnifiedEditorTimelineMediaTrack({
                     backdropFilter: "blur(4px)",
                   }}
                   title="Transición"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    // Stop propagation to prevent unintentionally selecting a clip
+                    // when the user taps the transition marker between two clips.
+                    // Transition editing UI can be wired here in a future iteration.
+                    e.stopPropagation();
+                  }}
                 >
                   +
                 </button>
