@@ -10,7 +10,8 @@ import RegistrationModal, { isRegistered } from "@/components/RegistrationModal"
 import ExportSaveDialog from "@/components/ExportSaveDialog";
 import TemplateSelector from "@/components/TemplateSelector";
 import MusicPanel from "@/components/MusicPanel";
-import EditorShellLayout from "@/components/EditorShellLayout";
+import CapCutEditorLayout from "@/components/CapCutEditorLayout";
+import { CapCutMediaTimeline, CapCutAudioTimeline } from "@/components/CapCutTimeline";
 import { STICKERS, stickerToDataUrl } from "@/lib/stickers";
 import type { StickerItem, PeraCutProject } from "@/lib/projectSchema";
 import { exceedsExportLimit, EXPORT_LIMIT_WARNING_ES, MAX_EXPORT_DURATION_MS } from "@/lib/durationValidation";
@@ -19,7 +20,6 @@ import type { MediaItem } from "@/components/MediaStrip";
 import UnifiedEditorTypeSelector from "./UnifiedEditorTypeSelector";
 import UnifiedEditorLeftPanel from "./UnifiedEditorLeftPanel";
 import UnifiedEditorCenterPanel from "./UnifiedEditorCenterPanel";
-import { UnifiedEditorTimelineControls, UnifiedEditorTimelineMediaTrack, UnifiedEditorTimelineAudioTrack } from "./UnifiedEditorTimeline";
 import { type EditorType, type RightTab, type Scene, DEFAULT_SCENE_MS, uid } from "./unifiedEditorTypes";
 
 export default function UnifiedEditorFixed() {
@@ -127,8 +127,392 @@ export default function UnifiedEditorFixed() {
 
   if (showTypeSelector) return <UnifiedEditorTypeSelector onBack={() => navigate("/")} onSelectType={(t) => { setEditorType(t); setShowTypeSelector(false); }} />;
 
-  return (<><EditorShellLayout title={editorType === "photo" ? "Editor de Fotos" : "Editor de Videos"} projectName={projectName} onBack={() => navigate("/")} isPaused={isVideoPaused} onTogglePause={handlePlayPause} warningBanner={warningBannerNode} fileInput={fileInputNode} leftSidebar={<UnifiedEditorLeftPanel mediaItems={mediaItems} scenes={scenes} selectedMediaIndex={selectedMediaIndex} onOpenFilePicker={openFilePicker} onSelectItem={(i) => { setSelectedMediaIndex(i); const m = scenes.findIndex((_, si) => sceneToMediaIndex(si) === i); setSelectedSceneIndex(m >= 0 ? m : 0); setIsVideoPaused(true); }} />} centerContent={<UnifiedEditorCenterPanel editorType={editorType} selectedMedia={selectedMedia} currentImage={currentImage} canvasRef={canvasRef} videoRef={videoRef} previewAspectRatio={previewAspectRatio} stickers={stickers} onOpenFilePicker={openFilePicker} onRemoveSticker={handleRemoveSticker} />} rightSidebar={<div className="space-y-2"><div className="grid grid-cols-3 gap-1">{[{ id: "neon", label: "Neon", filter: "cool" }, { id: "light", label: "Light", filter: "vintage" }, { id: "dusk", label: "Dusk", filter: "warm" }].map((x) => <Button key={x.id} size="sm" variant={selectedFilter === x.filter ? "default" : "outline"} className="h-8 text-[11px] px-1" onClick={() => setSelectedFilter(x.filter)}>{x.label}</Button>)}</div><div className="grid grid-cols-4 gap-1">{(["9:16", "1:1", "16:9", "4:5"] as const).map((x) => <Button key={x} size="sm" variant={previewAspectRatio === x ? "default" : "outline"} className="h-8 text-[10px] px-1" onClick={() => setPreviewAspectRatio(x)}>{x}</Button>)}</div><div className="grid grid-cols-3 gap-1">{([{ key: "media", label: "Media" }, { key: "clip", label: "Clip" }, { key: "project", label: "Proyecto" }] as const).map((x) => <Button key={x.key} size="sm" variant={rightTab === x.key ? "default" : "outline"} className="h-8 text-[10px] px-1" onClick={() => setRightTab(x.key)}>{x.label}</Button>)}</div><Button size="sm" variant="outline" className={compactButtonClass} onClick={openFilePicker}><Plus className="w-3.5 h-3.5 mr-1" /> Importar</Button><Button size="sm" variant="outline" className={compactButtonClass} onClick={() => setRightTab("clip")} disabled={editorType !== "video"}><Volume2 className="w-3.5 h-3.5 mr-1" /> Sonido</Button><Button size="sm" variant="outline" className={compactButtonClass} disabled={!selectedMedia} onClick={() => selectedMedia && handleRemoveMediaItem(selectedMedia.id)}><X className="w-3.5 h-3.5 mr-1" /> Borrar</Button><Button size="sm" variant="outline" className={compactButtonClass} disabled={!selectedMedia} onClick={handleDuplicateSelected}><Copy className="w-3.5 h-3.5 mr-1" /> Duplicar</Button>{editorType === "video" && <Button size="sm" variant="outline" className={compactButtonClass} onClick={() => setShowTemplateDialog(true)}><LayoutTemplate className="w-3.5 h-3.5 mr-1" /> Plantilla</Button>}<ExportSaveDialog {...saveDialogProps}><Button size="sm" className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700`} onClick={exportDialogButtonGuard}><Save className="w-3.5 h-3.5 mr-1" /> Guardar</Button></ExportSaveDialog><ExportSaveDialog {...saveDialogProps}><Button size="sm" variant="outline" className={compactButtonClass} onClick={exportDialogButtonGuard}><FolderOpen className="w-3.5 h-3.5 mr-1" /> Cargar</Button></ExportSaveDialog>{editorType === "photo" ? <Button size="sm" className={`${compactButtonClass} bg-blue-600 hover:bg-blue-700`} onClick={handleDownloadPhoto}><Download className="w-3.5 h-3.5 mr-1" /> Descargar</Button> : <ExportSaveDialog {...saveDialogProps}><Button size="sm" className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700 disabled:opacity-50`} disabled={renderBlocked} onClick={exportDialogButtonGuard}><Download className="w-3.5 h-3.5 mr-1" /> Descargar</Button></ExportSaveDialog>}<Button size="sm" variant="outline" className={compactButtonClass} onClick={() => requireRegistration(() => toast.success("Listo para compartir"))}><Share2 className="w-3.5 h-3.5 mr-1" /> Compartir</Button>{rightTab === "media" && editorType === "photo" && <div className="space-y-2 pt-2 border-t border-gray-200"><div><p className="text-[11px] text-gray-600 mb-1">Brillo {brightness}%</p><Slider value={[brightness]} onValueChange={(v) => setBrightness(v[0])} min={0} max={200} step={1} /></div><div><p className="text-[11px] text-gray-600 mb-1">Contraste {contrast}%</p><Slider value={[contrast]} onValueChange={(v) => setContrast(v[0])} min={0} max={200} step={1} /></div><div><p className="text-[11px] text-gray-600 mb-1">Saturación {saturation}%</p><Slider value={[saturation]} onValueChange={(v) => setSaturation(v[0])} min={0} max={200} step={1} /></div><div><p className="text-[11px] text-gray-600 mb-1">Rotación {rotation}°</p><Slider value={[rotation]} onValueChange={(v) => setRotation(v[0])} min={0} max={360} step={1} /></div></div>}{rightTab === "clip" && editorType === "video" && <div className="space-y-2 pt-2 border-t border-gray-200"><div><p className="text-[11px] text-gray-600 mb-1">Velocidad {slowMotionSpeed.toFixed(2)}x</p><Slider value={[slowMotionSpeed]} onValueChange={(v) => setSlowMotionSpeed(v[0])} min={0.25} max={2} step={0.25} /></div><div><p className="text-[11px] text-gray-600 mb-1">Transición</p><Select value={transitionType} onValueChange={setTransitionType}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fade">Fundido</SelectItem><SelectItem value="slide">Barrido</SelectItem><SelectItem value="zoom">Zoom</SelectItem><SelectItem value="wipeLeft">Barrido Izq</SelectItem><SelectItem value="wipeRight">Barrido Der</SelectItem><SelectItem value="none">Ninguno</SelectItem></SelectContent></Select></div><div><p className="text-[11px] text-gray-600 mb-1">Duración transición {transitionDuration}ms</p><Slider value={[transitionDuration]} onValueChange={(v) => setTransitionDuration(v[0])} min={100} max={2000} step={100} /></div><MusicPanel defaultMusicTrack={loadedTemplate?.defaultMusicTrack} templateDurationMs={loadedTemplate?.durationMs} /></div>}{rightTab === "project" && <div className="pt-2 border-t border-gray-200 space-y-2 text-[11px] text-gray-600"><p className="font-semibold text-gray-800">{projectName}</p><p>{editorType === "photo" ? "Proyecto de foto" : "Proyecto de video"}</p>{loadedTemplate && <p className="text-green-700">Plantilla: {loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}s · {loadedTemplate.aspectRatio}</p>}<Button size="sm" variant="outline" className={compactButtonClass} onClick={() => setShowStickerPanel((v) => !v)}><Plus className="w-3.5 h-3.5 mr-1" /> Stickers</Button>{showStickerPanel && <div className="grid grid-cols-4 gap-1">{STICKERS.map((st) => <button key={st.id} onClick={() => handleAddSticker(st.id)} title={st.name} className="aspect-square rounded border border-gray-200 hover:border-purple-400 flex items-center justify-center"><img src={stickerToDataUrl(st)} alt={st.name} className="w-6 h-6" /></button>)}</div>}</div>}</div>} timelineControls={<UnifiedEditorTimelineControls editorType={editorType} mediaItems={mediaItems} scenes={scenes} selectedMediaIndex={selectedMediaIndex} selectedSceneIndex={selectedSceneIndex} isVideoPaused={isVideoPaused} onPrev={handlePrev} onTogglePause={handlePlayPause} onNext={handleNext} onMoveClip={handleMoveSelectedClip} onSelectScene={(i) => { setSelectedSceneIndex(i); setSelectedMediaIndex(sceneToMediaIndex(i)); }} onSelectMedia={setSelectedMediaIndex} sceneToMediaIndex={sceneToMediaIndex} />} timelineMediaTrack={<UnifiedEditorTimelineMediaTrack editorType={editorType} mediaItems={mediaItems} scenes={scenes} selectedMediaIndex={selectedMediaIndex} selectedSceneIndex={selectedSceneIndex} onPrev={handlePrev} onTogglePause={handlePlayPause} onNext={handleNext} onMoveClip={handleMoveSelectedClip} onSelectScene={(i) => { setSelectedSceneIndex(i); setSelectedMediaIndex(sceneToMediaIndex(i)); }} onSelectMedia={setSelectedMediaIndex} sceneToMediaIndex={sceneToMediaIndex} isVideoPaused={isVideoPaused} />} timelineAudioTrack={<UnifiedEditorTimelineAudioTrack editorType={editorType} />} />
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}><DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden"><DialogHeader className="px-6 pt-6 pb-0"><DialogTitle>Plantillas</DialogTitle></DialogHeader><div className="px-6 pb-6 h-full min-h-0"><TemplateSelector onSelectTemplate={(t) => { navigate(`/editor?type=video&template=${t.id}`); setShowTemplateDialog(false); }} onClose={() => setShowTemplateDialog(false)} /></div></DialogContent></Dialog>
-      <RegistrationModal open={showRegistrationModal} onClose={() => { setShowRegistrationModal(false); setPendingAction(null); }} onSuccess={() => { setShowRegistrationModal(false); if (pendingAction) { pendingAction(); setPendingAction(null); } }} />
-    </>);
+  return (
+    <>
+      <CapCutEditorLayout
+        title={editorType === "photo" ? "Editor de Fotos" : "Editor de Videos"}
+        projectName={projectName}
+        onBack={() => navigate("/")}
+        warningBanner={warningBannerNode}
+        fileInput={fileInputNode}
+        leftSidebar={
+          <UnifiedEditorLeftPanel
+            mediaItems={mediaItems}
+            scenes={scenes}
+            selectedMediaIndex={selectedMediaIndex}
+            onOpenFilePicker={openFilePicker}
+            onSelectItem={(i) => {
+              setSelectedMediaIndex(i);
+              const m = scenes.findIndex((_, si) => sceneToMediaIndex(si) === i);
+              setSelectedSceneIndex(m >= 0 ? m : 0);
+              setIsVideoPaused(true);
+            }}
+          />
+        }
+        centerContent={
+          <UnifiedEditorCenterPanel
+            editorType={editorType}
+            selectedMedia={selectedMedia}
+            currentImage={currentImage}
+            canvasRef={canvasRef}
+            videoRef={videoRef}
+            previewAspectRatio={previewAspectRatio}
+            stickers={stickers}
+            onOpenFilePicker={openFilePicker}
+            onRemoveSticker={handleRemoveSticker}
+          />
+        }
+        rightSidebar={
+          <div className="space-y-3">
+            {/* Preset filters */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-foreground/70 uppercase">Presets</h3>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: "neon", label: "Neon", filter: "cool" },
+                  { id: "light", label: "Light", filter: "vintage" },
+                  { id: "dusk", label: "Dusk", filter: "warm" },
+                ].map((x) => (
+                  <Button
+                    key={x.id}
+                    size="sm"
+                    variant={selectedFilter === x.filter ? "default" : "outline"}
+                    className="h-8 text-[11px] px-1"
+                    onClick={() => setSelectedFilter(x.filter)}
+                  >
+                    {x.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Aspect ratio */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-foreground/70 uppercase">Ratio</h3>
+              <div className="grid grid-cols-4 gap-1">
+                {(["9:16", "1:1", "16:9", "4:5"] as const).map((x) => (
+                  <Button
+                    key={x}
+                    size="sm"
+                    variant={previewAspectRatio === x ? "default" : "outline"}
+                    className="h-8 text-[10px] px-1"
+                    onClick={() => setPreviewAspectRatio(x)}
+                  >
+                    {x}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tab selector */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-1">
+                {([
+                  { key: "media", label: "Media" },
+                  { key: "clip", label: "Clip" },
+                  { key: "project", label: "Proyecto" },
+                ] as const).map((x) => (
+                  <Button
+                    key={x.key}
+                    size="sm"
+                    variant={rightTab === x.key ? "default" : "outline"}
+                    className="h-8 text-[10px] px-1"
+                    onClick={() => setRightTab(x.key)}
+                  >
+                    {x.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className={compactButtonClass}
+                onClick={openFilePicker}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Importar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={compactButtonClass}
+                onClick={() => setRightTab("clip")}
+                disabled={editorType !== "video"}
+              >
+                <Volume2 className="w-3.5 h-3.5 mr-1" /> Sonido
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={compactButtonClass}
+                disabled={!selectedMedia}
+                onClick={() => selectedMedia && handleRemoveMediaItem(selectedMedia.id)}
+              >
+                <X className="w-3.5 h-3.5 mr-1" /> Borrar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={compactButtonClass}
+                disabled={!selectedMedia}
+                onClick={handleDuplicateSelected}
+              >
+                <Copy className="w-3.5 h-3.5 mr-1" /> Duplicar
+              </Button>
+              {editorType === "video" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={compactButtonClass}
+                  onClick={() => setShowTemplateDialog(true)}
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5 mr-1" /> Plantilla
+                </Button>
+              )}
+              <ExportSaveDialog {...saveDialogProps}>
+                <Button
+                  size="sm"
+                  className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700`}
+                  onClick={exportDialogButtonGuard}
+                >
+                  <Save className="w-3.5 h-3.5 mr-1" /> Guardar
+                </Button>
+              </ExportSaveDialog>
+              <ExportSaveDialog {...saveDialogProps}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={compactButtonClass}
+                  onClick={exportDialogButtonGuard}
+                >
+                  <FolderOpen className="w-3.5 h-3.5 mr-1" /> Cargar
+                </Button>
+              </ExportSaveDialog>
+              {editorType === "photo" ? (
+                <Button
+                  size="sm"
+                  className={`${compactButtonClass} bg-blue-600 hover:bg-blue-700`}
+                  onClick={handleDownloadPhoto}
+                >
+                  <Download className="w-3.5 h-3.5 mr-1" /> Descargar
+                </Button>
+              ) : (
+                <ExportSaveDialog {...saveDialogProps}>
+                  <Button
+                    size="sm"
+                    className={`${compactButtonClass} bg-purple-600 hover:bg-purple-700 disabled:opacity-50`}
+                    disabled={renderBlocked}
+                    onClick={exportDialogButtonGuard}
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1" /> Descargar
+                  </Button>
+                </ExportSaveDialog>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className={compactButtonClass}
+                onClick={() => requireRegistration(() => toast.success("Listo para compartir"))}
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1" /> Compartir
+              </Button>
+            </div>
+
+            {/* Tab content */}
+            {rightTab === "media" && editorType === "photo" && (
+              <div className="space-y-3 pt-3 border-t border-border">
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Brillo {brightness}%
+                  </p>
+                  <Slider
+                    value={[brightness]}
+                    onValueChange={(v) => setBrightness(v[0])}
+                    min={0}
+                    max={200}
+                    step={1}
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Contraste {contrast}%
+                  </p>
+                  <Slider
+                    value={[contrast]}
+                    onValueChange={(v) => setContrast(v[0])}
+                    min={0}
+                    max={200}
+                    step={1}
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Saturación {saturation}%
+                  </p>
+                  <Slider
+                    value={[saturation]}
+                    onValueChange={(v) => setSaturation(v[0])}
+                    min={0}
+                    max={200}
+                    step={1}
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Rotación {rotation}°
+                  </p>
+                  <Slider
+                    value={[rotation]}
+                    onValueChange={(v) => setRotation(v[0])}
+                    min={0}
+                    max={360}
+                    step={1}
+                  />
+                </div>
+              </div>
+            )}
+            {rightTab === "clip" && editorType === "video" && (
+              <div className="space-y-3 pt-3 border-t border-border">
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Velocidad {slowMotionSpeed.toFixed(2)}x
+                  </p>
+                  <Slider
+                    value={[slowMotionSpeed]}
+                    onValueChange={(v) => setSlowMotionSpeed(v[0])}
+                    min={0.25}
+                    max={2}
+                    step={0.25}
+                  />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">Transición</p>
+                  <Select value={transitionType} onValueChange={setTransitionType}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fade">Fundido</SelectItem>
+                      <SelectItem value="slide">Barrido</SelectItem>
+                      <SelectItem value="zoom">Zoom</SelectItem>
+                      <SelectItem value="wipeLeft">Barrido Izq</SelectItem>
+                      <SelectItem value="wipeRight">Barrido Der</SelectItem>
+                      <SelectItem value="none">Ninguno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1">
+                    Duración transición {transitionDuration}ms
+                  </p>
+                  <Slider
+                    value={[transitionDuration]}
+                    onValueChange={(v) => setTransitionDuration(v[0])}
+                    min={100}
+                    max={2000}
+                    step={100}
+                  />
+                </div>
+                <MusicPanel
+                  defaultMusicTrack={loadedTemplate?.defaultMusicTrack}
+                  templateDurationMs={loadedTemplate?.durationMs}
+                />
+              </div>
+            )}
+            {rightTab === "project" && (
+              <div className="pt-3 border-t border-border space-y-2">
+                <p className="font-semibold text-foreground text-sm">{projectName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {editorType === "photo" ? "Proyecto de foto" : "Proyecto de video"}
+                </p>
+                {loadedTemplate && (
+                  <p className="text-xs text-green-600">
+                    Plantilla: {loadedTemplate.styleName} · {loadedTemplate.durationMs / 1000}
+                    s · {loadedTemplate.aspectRatio}
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={compactButtonClass}
+                  onClick={() => setShowStickerPanel((v) => !v)}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Stickers
+                </Button>
+                {showStickerPanel && (
+                  <div className="grid grid-cols-4 gap-1">
+                    {STICKERS.map((st) => (
+                      <button
+                        key={st.id}
+                        onClick={() => handleAddSticker(st.id)}
+                        title={st.name}
+                        className="aspect-square rounded border border-border hover:border-primary/40 flex items-center justify-center transition-colors"
+                      >
+                        <img
+                          src={stickerToDataUrl(st)}
+                          alt={st.name}
+                          className="w-6 h-6"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        }
+        timelineSection={
+          <div className="space-y-3 h-full flex flex-col">
+            <CapCutMediaTimeline
+              mediaItems={mediaItems}
+              selectedIndex={selectedMediaIndex}
+              onSelectItem={setSelectedMediaIndex}
+              onRemoveItem={handleRemoveMediaItem}
+              onAddMedia={openFilePicker}
+              onAddTransition={(afterIndex) =>
+                toast.info(`Añadir transición después del clip ${afterIndex + 1}`)
+              }
+            />
+            <CapCutAudioTimeline
+              audioTrack={loadedTemplate?.defaultMusicTrack}
+              onAddAudio={() => setRightTab("clip")}
+            />
+          </div>
+        }
+      />
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden glass-panel">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle>Plantillas</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-6 h-full min-h-0">
+            <TemplateSelector
+              onSelectTemplate={(t) => {
+                navigate(`/editor?type=video&template=${t.id}`);
+                setShowTemplateDialog(false);
+              }}
+              onClose={() => setShowTemplateDialog(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+      <RegistrationModal
+        open={showRegistrationModal}
+        onClose={() => {
+          setShowRegistrationModal(false);
+          setPendingAction(null);
+        }}
+        onSuccess={() => {
+          setShowRegistrationModal(false);
+          if (pendingAction) {
+            pendingAction();
+            setPendingAction(null);
+          }
+        }}
+      />
+    </>
+  );
 }
