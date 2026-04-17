@@ -219,3 +219,182 @@
 .btn-boom-b1:active {
   animation: boomPulseB1 420ms ease-out;
 }
+
+/* ── CapCut 2026 Shell Themes ───────────────────────────────────────────── */
+.editor-shell {
+  background: var(--shell-bg);
+  color: var(--shell-ink, #0f172a);
+  position: relative;
+}
+
+.skin-light {
+  --shell-bg: radial-gradient(circle at 10% 10%, #e8f0ff 0%, transparent 30%), radial-gradient(circle at 85% 0%, #ffe6ff 0%, transparent 32%), #f6f7fb;
+  --shell-panel: rgba(255, 255, 255, 0.86);
+  --shell-border: rgba(15, 23, 42, 0.08);
+  --shell-ink: #0f172a;
+  --shell-ink-soft: #1f2a44;
+  --shell-ink-muted: #5b657a;
+  --shell-accent: #a855f7;
+  --timeline-surface: rgba(255, 255, 255, 0.9);
+  --timeline-track: rgba(15, 23, 42, 0.06);
+  --clip-bg: rgba(255, 255, 255, 0.92);
+  --clip-border: rgba(15, 23, 42, 0.08);
+  --add-chip: rgba(255, 255, 255, 0.7);
+  --preview-surface: linear-gradient(140deg, rgba(15, 23, 42, 0.78), rgba(88, 28, 135, 0.55));
+  --shell-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+}
+
+.skin-graphite {
+  --shell-bg: radial-gradient(circle at 12% 20%, rgba(88, 28, 135, 0.25), transparent 32%), radial-gradient(circle at 80% 10%, rgba(14, 165, 233, 0.18), transparent 28%), #0f1724;
+  --shell-panel: rgba(29, 33, 45, 0.86);
+  --shell-border: rgba(255, 255, 255, 0.08);
+  --shell-ink: #e8ecf8;
+  --shell-ink-soft: #cbd4ec;
+  --shell-ink-muted: #9aa6c7;
+  --shell-accent: #a78bfa;
+  --timeline-surface: rgba(15, 19, 28, 0.94);
+  --timeline-track: rgba(255, 255, 255, 0.06);
+  --clip-bg: rgba(255, 255, 255, 0.06);
+  --clip-border: rgba(255, 255, 255, 0.12);
+  --add-chip: rgba(255, 255, 255, 0.1);
+  --preview-surface: linear-gradient(155deg, rgba(8, 12, 20, 0.9), rgba(55, 65, 81, 0.68));
+  --shell-shadow: 0 24px 90px rgba(0, 0, 0, 0.45);
+}
+
+.skin-midnight {
+  --shell-bg: radial-gradient(circle at 20% 10%, rgba(99, 102, 241, 0.35), transparent 34%), radial-gradient(circle at 90% 0%, rgba(236, 72, 153, 0.3), transparent 30%), #090b17;
+  --shell-panel: rgba(14, 17, 30, 0.9);
+  --shell-border: rgba(255, 255, 255, 0.07);
+  --shell-ink: #e7e9ff;
+  --shell-ink-soft: #cdd4ff;
+  --shell-ink-muted: #9ea8d8;
+  --shell-accent: #7c3aed;
+  --timeline-surface: rgba(8, 12, 24, 0.92);
+  --timeline-track: rgba(255, 255, 255, 0.08);
+  --clip-bg: rgba(255, 255, 255, 0.07);
+  --clip-border: rgba(255, 255, 255, 0.12);
+  --add-chip: rgba(255, 255, 255, 0.12);
+  --preview-surface: linear-gradient(160deg, rgba(10, 12, 26, 0.95), rgba(76, 29, 149, 0.65));
+  --shell-shadow: 0 26px 100px rgba(0, 0, 0, 0.55);
+}
+
+.shell-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.7;
+}
+
+.shell-glow-1 {
+  width: 42%;
+  height: 42%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.35), transparent 55%);
+  top: -12%;
+  left: -10%;
+}
+
+.shell-glow-2 {
+  width: 45%;
+  height: 45%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.25), transparent 60%);
+  right: -14%;
+  top: 18%;
+}
+
+.glass-panel {
+  background: var(--shell-panel);
+  border: 1px solid var(--shell-border);
+  box-shadow: var(--shell-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.preview-surface {
+  background: var(--preview-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.flow-chip {
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--shell-ink-muted);
+}
+
+.flow-chip-active {
+  background: linear-gradient(120deg, var(--shell-accent), rgba(124, 58, 237, 0.65));
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.flow-chip-done {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: var(--shell-ink);
+}
+
+.timeline-surface {
+  background: var(--timeline-surface);
+}
+
+.timeline-track {
+  background: var(--timeline-track);
+  backdrop-filter: blur(6px);
+}
+
+.clip-card {
+  background: var(--clip-bg);
+  border: 1px solid var(--clip-border);
+  padding: 0.65rem 0.75rem;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.clip-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--shell-accent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.clip-card-active {
+  border-color: var(--shell-accent);
+  box-shadow: 0 0 0 1px var(--shell-accent), 0 14px 40px rgba(124, 58, 237, 0.28);
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.12), var(--clip-bg));
+}
+
+.add-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px dashed var(--clip-border);
+  background: var(--add-chip);
+  color: var(--shell-ink);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.16);
+}
+
+.add-chip:hover {
+  border-color: var(--shell-accent);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
