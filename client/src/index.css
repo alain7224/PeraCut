@@ -197,6 +197,91 @@
   }
 }
 
+/* ── Editor skins ──────────────────────────────────────────────────────────
+   Applied via data-editor-skin="light|graphite|midnight" on the shell root.
+   These CSS variables are used by EditorShellLayout and its direct children.
+   ──────────────────────────────────────────────────────────────────────── */
+[data-editor-skin="light"] {
+  --sk-shell-bg: #f3f4f6;
+  --sk-header-bg: rgba(255, 255, 255, 0.92);
+  --sk-header-border: rgba(0, 0, 0, 0.08);
+  --sk-header-text: #111827;
+  --sk-header-subtext: #6b7280;
+  --sk-panel-bg: #ffffff;
+  --sk-panel-border: rgba(0, 0, 0, 0.08);
+  --sk-panel-text: #1f2937;
+  --sk-panel-subtext: #6b7280;
+  --sk-timeline-bg: #ffffff;
+  --sk-timeline-border: rgba(0, 0, 0, 0.08);
+  --sk-label-text: #6b7280;
+  --sk-clip-bg: #e5e7eb;
+  --sk-clip-empty: #9ca3af;
+  --sk-audio-bg: rgba(99, 102, 241, 0.08);
+  --sk-audio-border: rgba(99, 102, 241, 0.25);
+  --sk-audio-text: #4f46e5;
+  --sk-trans-btn-bg: rgba(255, 255, 255, 0.85);
+  --sk-trans-btn-border: rgba(0, 0, 0, 0.15);
+  --sk-trans-btn-text: #6b7280;
+  --sk-trans-btn-hover-bg: rgba(139, 92, 246, 0.15);
+  --sk-trans-btn-hover-border: rgba(139, 92, 246, 0.5);
+}
+
+[data-editor-skin="graphite"] {
+  --sk-shell-bg: #1a1a2e;
+  --sk-header-bg: rgba(22, 33, 62, 0.95);
+  --sk-header-border: rgba(255, 255, 255, 0.10);
+  --sk-header-text: #e2e8f0;
+  --sk-header-subtext: #94a3b8;
+  --sk-panel-bg: rgba(15, 52, 96, 0.65);
+  --sk-panel-border: rgba(255, 255, 255, 0.10);
+  --sk-panel-text: #cbd5e1;
+  --sk-panel-subtext: #94a3b8;
+  --sk-timeline-bg: #16213e;
+  --sk-timeline-border: rgba(255, 255, 255, 0.10);
+  --sk-label-text: #94a3b8;
+  --sk-clip-bg: rgba(255, 255, 255, 0.10);
+  --sk-clip-empty: rgba(255, 255, 255, 0.30);
+  --sk-audio-bg: rgba(139, 92, 246, 0.12);
+  --sk-audio-border: rgba(139, 92, 246, 0.30);
+  --sk-audio-text: #a78bfa;
+  --sk-trans-btn-bg: rgba(255, 255, 255, 0.10);
+  --sk-trans-btn-border: rgba(255, 255, 255, 0.20);
+  --sk-trans-btn-text: rgba(255, 255, 255, 0.60);
+  --sk-trans-btn-hover-bg: rgba(139, 92, 246, 0.35);
+  --sk-trans-btn-hover-border: rgba(167, 139, 250, 0.60);
+}
+
+[data-editor-skin="midnight"] {
+  --sk-shell-bg: #050510;
+  --sk-header-bg: rgba(0, 0, 0, 0.90);
+  --sk-header-border: rgba(255, 255, 255, 0.05);
+  --sk-header-text: #f1f5f9;
+  --sk-header-subtext: rgba(255, 255, 255, 0.38);
+  --sk-panel-bg: rgba(255, 255, 255, 0.04);
+  --sk-panel-border: rgba(255, 255, 255, 0.06);
+  --sk-panel-text: rgba(255, 255, 255, 0.85);
+  --sk-panel-subtext: rgba(255, 255, 255, 0.38);
+  --sk-timeline-bg: #0a0a1a;
+  --sk-timeline-border: rgba(255, 255, 255, 0.05);
+  --sk-label-text: rgba(255, 255, 255, 0.35);
+  --sk-clip-bg: rgba(255, 255, 255, 0.06);
+  --sk-clip-empty: rgba(255, 255, 255, 0.25);
+  --sk-audio-bg: rgba(124, 58, 237, 0.10);
+  --sk-audio-border: rgba(124, 58, 237, 0.25);
+  --sk-audio-text: rgba(196, 181, 253, 0.70);
+  --sk-trans-btn-bg: rgba(255, 255, 255, 0.05);
+  --sk-trans-btn-border: rgba(255, 255, 255, 0.10);
+  --sk-trans-btn-text: rgba(255, 255, 255, 0.40);
+  --sk-trans-btn-hover-bg: rgba(124, 58, 237, 0.30);
+  --sk-trans-btn-hover-border: rgba(167, 139, 250, 0.45);
+}
+
+/* Timeline clip transition button hover */
+.timeline-trans-btn:hover {
+  background: var(--sk-trans-btn-hover-bg);
+  border-color: var(--sk-trans-btn-hover-border);
+}
+
 @keyframes boomPulseB1 {
   0% {
     transform: scale(1);
